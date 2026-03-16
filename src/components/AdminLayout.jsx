@@ -1,0 +1,35 @@
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+
+function AdminLayout() {
+  const navigate = useNavigate()
+
+  function onLogout() {
+    localStorage.removeItem('admin_token')
+    navigate('/admin/login', { replace: true })
+  }
+
+  return (
+    <div className="admin">
+      <header className="admin-header">
+        <div className="container header-inner">
+          <span className="brand">后台管理</span>
+          <button type="button" className="btn btn-secondary" onClick={onLogout}>
+            退出登录
+          </button>
+        </div>
+      </header>
+      <div className="admin-body container">
+        <aside className="admin-sidebar">
+          <NavLink to="/admin/lost-items" className="nav-link">
+            失物招领管理
+          </NavLink>
+        </aside>
+        <main className="admin-main">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default AdminLayout
