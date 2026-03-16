@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Alert from '../../components/ui/Alert.jsx'
+import Card from '../../components/ui/Card.jsx'
 import { apiLogin } from '../../services/adminApi.js'
 
 function AdminLoginPage() {
@@ -39,7 +41,7 @@ function AdminLoginPage() {
         <p className="muted">用于管理失物招领信息（CRUD）。</p>
       </div>
 
-      <form className="card form" onSubmit={onSubmit}>
+      <Card as="form" className="form" onSubmit={onSubmit}>
         <label className="field">
           <span className="label">账号</span>
           <input
@@ -60,12 +62,12 @@ function AdminLoginPage() {
           />
         </label>
 
-        {error ? <div className="alert alert-danger">{error}</div> : null}
+        {error ? <Alert variant="danger">{error}</Alert> : null}
 
         <button className="btn" type="submit" disabled={submitting}>
           {submitting ? '登录中…' : '登录'}
         </button>
-      </form>
+      </Card>
     </div>
   )
 }

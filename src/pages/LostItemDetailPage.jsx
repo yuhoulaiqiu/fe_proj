@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import Alert from '../components/ui/Alert.jsx'
+import Badge from '../components/ui/Badge.jsx'
+import Card from '../components/ui/Card.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
+import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { apiGetLostItem } from '../services/publicApi.js'
+
+const TYPE_LABEL = { lost: '失物', found: '招领' }
+const STATUS_LABEL = { open: '未处理', claimed: '已认领', returned: '已归还' }
+const STATUS_BADGE = { open: 'warning', claimed: 'neutral', returned: 'success' }
 
 function LostItemDetailPage() {
   const { id } = useParams()
@@ -39,30 +48,37 @@ function LostItemDetailPage() {
         <p className="muted">记录 ID：{id}</p>
       </div>
 
-      <div className="card">
-        {error ? <div className="alert alert-danger">{error}</div> : null}
-        {loading ? (
-          <p className="muted">正在加载…</p>
-        ) : data ? (
-          <>
-            <h2 className="card-title">{data.title || '未命名记录'}</h2>
+      {error ? <Alert variant="danger">{error}</Alert> : null}
+
+      {loading ? (
+        <LoadingCard title="正在加载详情…" lines={3} />
+      ) : data ? (
+        <Card>
+          <h2 className="card-title">{data.title || '未命名记录'}</h2>
+          <div className="chips">
             {data.itemType || data.type ? (
-              <p className="muted">类型：{data.itemType || data.type}</p>
+              <Badge variant="neutral">
+                {`类型：${TYPE_LABEL[data.type] || data.itemType || data.type}`}
+              </Badge>
             ) : null}
-            {data.status ? <p className="muted">状态：{data.status}</p> : null}
-            {data.location ? <p className="muted">地点：{data.location}</p> : null}
+            {data.status ? (
+              <Badge variant={STATUS_BADGE[data.status] || 'neutral'}>
+                {`状态：${STATUS_LABEL[data.status] || data.status}`}
+              </Badge>
+            ) : null}
+            {data.location ? <Badge variant="neutral">{`地点：${data.location}`}</Badge> : null}
             {data.occurredAt ? (
-              <p className="muted">时间：{data.occurredAt}</p>
+              <Badge variant="neutral">{`时间：${data.occurredAt}`}</Badge>
             ) : null}
-            {data.contact ? <p className="muted">联系方式：{data.contact}</p> : null}
-            <div style={{ marginTop: 10 }}>
-              <p className="muted">{data.description || '暂无描述'}</p>
-            </div>
-          </>
-        ) : (
-          <p className="muted">暂无数据。</p>
-        )}
-      </div>
+            {data.contact ? <Badge variant="neutral">{`联系方式：${data.contact}`}</Badge> : null}
+          </div>
+          <div className="mt-3">
+            <p className="muted">{data.description || '暂无描述'}</p>
+          </div>
+        </Card>
+      ) : (
+        <EmptyState description="未找到该记录，可能已被删除或 ID 不存在。" />
+      )}
 
       <Link className="btn btn-secondary" to="/lost-found">
         返回列表

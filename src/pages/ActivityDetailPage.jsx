@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import Alert from '../components/ui/Alert.jsx'
+import Badge from '../components/ui/Badge.jsx'
+import Card from '../components/ui/Card.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
+import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { apiGetActivity } from '../services/publicApi.js'
 
 function ActivityDetailPage() {
@@ -39,28 +44,28 @@ function ActivityDetailPage() {
         <p className="muted">活动 ID：{id}</p>
       </div>
 
-      {error ? <div className="alert alert-danger">{error}</div> : null}
+      {error ? <Alert variant="danger">{error}</Alert> : null}
 
-      <div className="card">
-        {loading ? (
-          <p className="muted">正在加载…</p>
-        ) : data ? (
-          <>
-            <h2 className="card-title">{data.title || '未命名活动'}</h2>
-            {data.location ? <p className="muted">地点：{data.location}</p> : null}
+      {loading ? (
+        <LoadingCard title="正在加载活动详情…" lines={3} />
+      ) : data ? (
+        <Card>
+          <h2 className="card-title">{data.title || '未命名活动'}</h2>
+          <div className="chips">
+            {data.location ? <Badge variant="neutral">{`地点：${data.location}`}</Badge> : null}
             {data.startTime || data.endTime ? (
-              <p className="muted">
-                时间：{data.startTime || '-'} ~ {data.endTime || '-'}
-              </p>
+              <Badge variant="neutral">
+                {`时间：${data.startTime || '-'} ~ ${data.endTime || '-'}`}
+              </Badge>
             ) : null}
-            <div style={{ marginTop: 10 }}>
-              <p className="muted">{data.content || data.summary || '暂无内容'}</p>
-            </div>
-          </>
-        ) : (
-          <p className="muted">暂无数据。</p>
-        )}
-      </div>
+          </div>
+          <div className="mt-3">
+            <p className="muted">{data.content || data.summary || '暂无内容'}</p>
+          </div>
+        </Card>
+      ) : (
+        <EmptyState description="未找到该活动，可能已被删除或 ID 不存在。" />
+      )}
 
       <Link className="btn btn-secondary" to="/activities">
         返回列表

@@ -1,20 +1,31 @@
 import { Link } from 'react-router-dom'
+import hero from '../assets/hero.png'
 
 function HomePage() {
   return (
     <div className="stack">
       <section className="hero-card">
-        <h1 className="page-title">社区便民公益互助平台</h1>
-        <p className="lead">
-          为社区居民提供公益活动、便民服务目录与失物招领信息，帮助信息更快触达需要的人。
-        </p>
-        <div className="actions">
-          <Link className="btn" to="/activities">
-            查看公益活动
-          </Link>
-          <Link className="btn btn-secondary" to="/lost-found">
-            浏览失物招领
-          </Link>
+        <div className="hero">
+          <div className="stack">
+            <h1 className="page-title">社区便民公益互助平台</h1>
+            <p className="lead">
+              为社区居民提供公益活动、便民服务目录与失物招领信息，帮助信息更快触达需要的人。
+            </p>
+            <div className="actions">
+              <Link className="btn" to="/activities">
+                查看公益活动
+              </Link>
+              <Link className="btn btn-secondary" to="/lost-found">
+                浏览失物招领
+              </Link>
+            </div>
+          </div>
+          <img
+            className="hero-media"
+            src={hero}
+            alt="社区互助信息展示"
+            loading="lazy"
+          />
         </div>
       </section>
 

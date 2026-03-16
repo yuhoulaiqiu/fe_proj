@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import Alert from '../../components/ui/Alert.jsx'
+import Card from '../../components/ui/Card.jsx'
+import LoadingCard from '../../components/ui/LoadingCard.jsx'
 import {
   apiAdminCreateLostItem,
   apiAdminGetLostItem,
@@ -109,9 +112,10 @@ function AdminLostItemFormPage() {
         <p className="muted">用于发布与维护失物/招领信息。</p>
       </div>
 
-      {error ? <div className="alert alert-danger">{error}</div> : null}
+      {error ? <Alert variant="danger">{error}</Alert> : null}
+      {loading ? <LoadingCard title="正在加载记录…" lines={2} /> : null}
 
-      <form className="card form" onSubmit={onSubmit}>
+      <Card as="form" className="form" onSubmit={onSubmit}>
         <label className="field">
           <span className="label">标题</span>
           <input
@@ -190,7 +194,7 @@ function AdminLostItemFormPage() {
             返回列表
           </Link>
         </div>
-      </form>
+      </Card>
     </div>
   )
 }

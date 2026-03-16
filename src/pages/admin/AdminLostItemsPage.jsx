@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Alert from '../../components/ui/Alert.jsx'
+import Badge from '../../components/ui/Badge.jsx'
+import Card from '../../components/ui/Card.jsx'
+import EmptyState from '../../components/ui/EmptyState.jsx'
+import LoadingCard from '../../components/ui/LoadingCard.jsx'
 import {
   apiAdminDeleteLostItem,
   apiAdminListLostItems,
   apiAdminUpdateLostItem,
 } from '../../services/adminApi.js'
+
+const TYPE_LABEL = { lost: '失物', found: '招领' }
+const STATUS_LABEL = { open: '未处理', claimed: '已认领', returned: '已归还' }
+const STATUS_BADGE = { open: 'warning', claimed: 'neutral', returned: 'success' }
 
 function AdminLostItemsPage() {
   const navigate = useNavigate()
@@ -107,9 +116,9 @@ function AdminLostItemsPage() {
         </Link>
       </div>
 
-      <form className="card" onSubmit={onSearch}>
-        <div className="row-between">
-          <label className="field" style={{ flex: 1 }}>
+      <Card as="form" onSubmit={onSearch}>
+        <div className="filters">
+          <label className="field">
             <span className="label">类型</span>
             <select value={typeInput} onChange={(e) => setTypeInput(e.target.value)}>
               <option value="">全部</option>
@@ -117,7 +126,7 @@ function AdminLostItemsPage() {
               <option value="found">招领</option>
             </select>
           </label>
-          <label className="field" style={{ flex: 1 }}>
+          <label className="field">
             <span className="label">状态</span>
             <select
               value={statusInput}
@@ -129,7 +138,7 @@ function AdminLostItemsPage() {
               <option value="returned">已归还</option>
             </select>
           </label>
-          <label className="field" style={{ flex: 2 }}>
+          <label className="field span-2">
             <span className="label">关键词</span>
             <input
               value={keywordInput}
@@ -137,33 +146,42 @@ function AdminLostItemsPage() {
               placeholder="标题或描述关键词"
             />
           </label>
-          <div className="actions" style={{ alignSelf: 'end' }}>
-            <button className="btn" type="submit" disabled={loading}>
-              {loading ? '加载中…' : '搜索'}
-            </button>
+          <div className="filters-actions">
+            <div className="actions">
+              <button className="btn" type="submit" disabled={loading}>
+                {loading ? '加载中…' : '搜索'}
+              </button>
+            </div>
           </div>
         </div>
         {error ? (
-          <div className="alert alert-danger" style={{ marginTop: 12 }}>
+          <Alert className="mt-3" variant="danger">
             {error}
-          </div>
+          </Alert>
         ) : null}
-      </form>
+      </Card>
 
       {items.length ? (
         items.map((it) => (
-          <div className="card" key={it.id}>
+          <Card key={it.id}>
             <div className="row-between">
-              <div style={{ flex: 1 }}>
+              <div className="grow">
                 <h2 className="card-title">{it.title || '未命名记录'}</h2>
-                <p className="muted">
-                  {(it.itemType && `类型：${it.itemType}`) || '类型：-'}
-                  {it.location ? `｜地点：${it.location}` : ''}
-                  {it.occurredAt ? `｜时间：${it.occurredAt}` : ''}
-                </p>
+                <div className="chips">
+                  <Badge variant="neutral">
+                    {`类型：${TYPE_LABEL[it.itemType] || it.itemType || '-'}`}
+                  </Badge>
+                  <Badge variant={STATUS_BADGE[it.status] || 'neutral'}>
+                    {`状态：${STATUS_LABEL[it.status] || it.status || '-'}`}
+                  </Badge>
+                  {it.location ? <Badge variant="neutral">{`地点：${it.location}`}</Badge> : null}
+                  {it.occurredAt ? (
+                    <Badge variant="neutral">{`时间：${it.occurredAt}`}</Badge>
+                  ) : null}
+                </div>
                 {it.description ? <p className="muted">{it.description}</p> : null}
               </div>
-              <div className="stack" style={{ minWidth: 240 }}>
+              <div className="stack minw-240">
                 <label className="field">
                   <span className="label">状态</span>
                   <select
@@ -189,16 +207,12 @@ function AdminLostItemsPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         ))
       ) : loading ? (
-        <div className="card">
-          <p className="muted">正在加载…</p>
-        </div>
+        <LoadingCard title="正在加载…" />
       ) : (
-        <div className="card">
-          <p className="muted">暂无数据。</p>
-        </div>
+        <EmptyState description="暂无记录，点击“新增记录”发布第一条信息。" />
       )}
     </div>
   )

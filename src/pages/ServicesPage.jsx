@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Alert from '../components/ui/Alert.jsx'
+import Badge from '../components/ui/Badge.jsx'
+import Card from '../components/ui/Card.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
+import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { apiGetServices } from '../services/publicApi.js'
 
 function ServicesPage() {
@@ -55,9 +60,9 @@ function ServicesPage() {
         </p>
       </div>
 
-      <form className="card" onSubmit={onSearch}>
-        <div className="row-between">
-          <label className="field" style={{ flex: 1 }}>
+      <Card as="form" onSubmit={onSearch}>
+        <div className="filters">
+          <label className="field">
             <span className="label">类别</span>
             <select
               value={categoryInput}
@@ -70,7 +75,7 @@ function ServicesPage() {
               <option value="guide">办事指南</option>
             </select>
           </label>
-          <label className="field" style={{ flex: 2 }}>
+          <label className="field span-2">
             <span className="label">关键词</span>
             <input
               value={keywordInput}
@@ -78,28 +83,34 @@ function ServicesPage() {
               placeholder="例如：水电、开锁、医保"
             />
           </label>
-          <div className="actions" style={{ alignSelf: 'end' }}>
-            <button className="btn" type="submit" disabled={loading}>
-              {loading ? '加载中…' : '搜索'}
-            </button>
+          <div className="filters-actions">
+            <div className="actions">
+              <button className="btn" type="submit" disabled={loading}>
+                {loading ? '加载中…' : '搜索'}
+              </button>
+            </div>
           </div>
         </div>
         {error ? (
-          <div className="alert alert-danger" style={{ marginTop: 12 }}>
+          <Alert className="mt-3" variant="danger">
             {error}
-          </div>
+          </Alert>
         ) : null}
-      </form>
+      </Card>
 
       {items.length ? (
         items.map((it) => (
-          <div className="card" key={it.id}>
+          <Card key={it.id}>
             <div className="row-between">
               <div>
                 <h2 className="card-title">{it.name || '未命名服务'}</h2>
                 <p className="muted">
-                  {(it.category && `类别：${it.category}`) || '类别：-'}{' '}
-                  {(it.phone && `｜电话：${it.phone}`) || ''}
+                  <span className="chips">
+                    <Badge variant="neutral">
+                      {(it.category && `类别：${it.category}`) || '类别：-'}
+                    </Badge>
+                    {it.phone ? <Badge variant="neutral">{`电话：${it.phone}`}</Badge> : null}
+                  </span>
                 </p>
                 {it.description ? <p className="muted">{it.description}</p> : null}
               </div>
@@ -107,16 +118,12 @@ function ServicesPage() {
                 查看详情
               </Link>
             </div>
-          </div>
+          </Card>
         ))
       ) : loading ? (
-        <div className="card">
-          <p className="muted">正在加载服务目录…</p>
-        </div>
+        <LoadingCard title="正在加载服务目录…" />
       ) : (
-        <div className="card">
-          <p className="muted">暂无数据。</p>
-        </div>
+        <EmptyState description="暂未找到符合条件的服务，试试调整筛选条件。" />
       )}
     </div>
   )
