@@ -56,9 +56,9 @@ function LostItemDetailPage() {
         <Card>
           <h2 className="card-title">{data.title || '未命名记录'}</h2>
           <div className="chips">
-            {data.itemType || data.type ? (
+            {data.itemType ? (
               <Badge variant="neutral">
-                {`类型：${TYPE_LABEL[data.type] || data.itemType || data.type}`}
+                {`类型：${TYPE_LABEL[data.itemType] || data.itemType}`}
               </Badge>
             ) : null}
             {data.status ? (

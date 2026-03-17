@@ -8,6 +8,7 @@ import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { apiGetLostItems } from '../services/publicApi.js'
 
 const TYPE_LABEL = { lost: '失物', found: '招领' }
+const TYPE_BADGE = { lost: 'warning', found: 'success' }
 const STATUS_LABEL = { open: '未处理', claimed: '已认领', returned: '已归还' }
 const STATUS_BADGE = { open: 'warning', claimed: 'neutral', returned: 'success' }
 
@@ -102,7 +103,7 @@ function LostFoundPage() {
           </label>
           <div className="filters-actions">
             <div className="actions">
-              <button className="btn" type="submit" disabled={loading}>
+              <button className="btn btn-primary" type="submit" disabled={loading}>
                 {loading ? '加载中…' : '搜索'}
               </button>
             </div>
@@ -115,33 +116,37 @@ function LostFoundPage() {
         ) : null}
       </Card>
 
-      {items.length ? (
+      {loading ? (
+        <div className="stack">
+          <LoadingCard title="正在加载列表…" />
+          <LoadingCard />
+          <LoadingCard />
+        </div>
+      ) : items.length ? (
         items.map((it) => (
-          <Card key={it.id}>
-            <div className="row-between">
-              <div>
-                <h2 className="card-title">{it.title || '未命名记录'}</h2>
-                <div className="chips">
-                  <Badge variant="neutral">
-                    {`类型：${TYPE_LABEL[it.type] || it.itemType || it.type || '-'}`}
-                  </Badge>
-                  {it.status ? (
-                    <Badge variant={STATUS_BADGE[it.status] || 'neutral'}>
-                      {`状态：${STATUS_LABEL[it.status] || it.status}`}
+            <Card key={it.id}>
+              <div className="row-between">
+                <div>
+                  <h2 className="card-title">{it.title || '未命名记录'}</h2>
+                  <div className="chips">
+                    <Badge variant={TYPE_BADGE[it.itemType] || 'neutral'}>
+                      {`类型：${TYPE_LABEL[it.itemType] || it.itemType || '-'}`}
                     </Badge>
-                  ) : null}
-                  {it.location ? <Badge variant="neutral">{`地点：${it.location}`}</Badge> : null}
+                    {it.status ? (
+                      <Badge variant={STATUS_BADGE[it.status] || 'neutral'}>
+                        {`状态：${STATUS_LABEL[it.status] || it.status}`}
+                      </Badge>
+                    ) : null}
+                    {it.location ? <Badge variant="neutral">{`地点：${it.location}`}</Badge> : null}
+                  </div>
+                  {it.description ? <p className="muted">{it.description}</p> : null}
                 </div>
-                {it.description ? <p className="muted">{it.description}</p> : null}
+                <Link className="btn btn-secondary" to={`/lost-found/${it.id}`}>
+                  查看详情
+                </Link>
               </div>
-              <Link className="btn btn-secondary" to={`/lost-found/${it.id}`}>
-                查看详情
-              </Link>
-            </div>
-          </Card>
-        ))
-      ) : loading ? (
-        <LoadingCard title="正在加载列表…" />
+            </Card>
+          ))
       ) : (
         <EmptyState description="暂未找到符合条件的记录，试试调整筛选条件。" />
       )}

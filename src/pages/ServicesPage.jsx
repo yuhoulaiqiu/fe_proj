@@ -5,9 +5,11 @@ import Badge from '../components/ui/Badge.jsx'
 import Card from '../components/ui/Card.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
+import { useToast } from '../components/ui/Toast.jsx'
 import { apiGetServices } from '../services/publicApi.js'
 
 function ServicesPage() {
+  const { addToast } = useToast()
   const [categoryInput, setCategoryInput] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
   const [query, setQuery] = useState({ category: '', keyword: '' })
@@ -45,6 +47,12 @@ function ServicesPage() {
       cancelled = true
     }
   }, [query.category, query.keyword])
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      addToast('号码已复制', 'success')
+    })
+  }
 
   function onSearch(e) {
     e.preventDefault()
@@ -98,30 +106,48 @@ function ServicesPage() {
         ) : null}
       </Card>
 
-      {items.length ? (
-        items.map((it) => (
-          <Card key={it.id}>
-            <div className="row-between">
-              <div>
-                <h2 className="card-title">{it.name || '未命名服务'}</h2>
-                <p className="muted">
-                  <span className="chips">
-                    <Badge variant="neutral">
-                      {(it.category && `类别：${it.category}`) || '类别：-'}
-                    </Badge>
-                    {it.phone ? <Badge variant="neutral">{`电话：${it.phone}`}</Badge> : null}
-                  </span>
-                </p>
-                {it.description ? <p className="muted">{it.description}</p> : null}
+      {loading ? (
+        <div className="stack">
+          <LoadingCard title="正在加载服务目录…" />
+          <LoadingCard />
+          <LoadingCard />
+        </div>
+      ) : items.length ? (
+        <div className="stack">
+          {items.map((it) => (
+            <Card key={it.id}>
+              <div className="row-between">
+                <div className="grow">
+                  <div className="chips" style={{ marginBottom: '8px' }}>
+                    {it.category && (
+                      <Badge variant="neutral">
+                        {it.category === 'repair' ? '维修' :
+                         it.category === 'housekeeping' ? '家政' :
+                         it.category === 'medical' ? '医疗' :
+                         it.category === 'guide' ? '办事指南' : it.category}
+                      </Badge>
+                    )}
+                    {it.phone && (
+                      <button
+                        className="badge badge-neutral"
+                        style={{ cursor: 'pointer', borderStyle: 'dashed' }}
+                        onClick={() => handleCopy(it.phone)}
+                        title="点击复制号码"
+                      >
+                        📞 {it.phone} (点击复制)
+                      </button>
+                    )}
+                  </div>
+                  <h2 className="card-title">{it.name || '未命名服务'}</h2>
+                  {it.description ? <p className="muted">{it.description}</p> : null}
+                </div>
+                <Link className="btn btn-secondary" to={`/services/${it.id}`}>
+                  查看详情
+                </Link>
               </div>
-              <Link className="btn btn-secondary" to={`/services/${it.id}`}>
-                查看详情
-              </Link>
-            </div>
-          </Card>
-        ))
-      ) : loading ? (
-        <LoadingCard title="正在加载服务目录…" />
+            </Card>
+          ))}
+        </div>
       ) : (
         <EmptyState description="暂未找到符合条件的服务，试试调整筛选条件。" />
       )}

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Alert from '../../components/ui/Alert.jsx'
 import Card from '../../components/ui/Card.jsx'
 import LoadingCard from '../../components/ui/LoadingCard.jsx'
+import { useToast } from '../../components/ui/Toast.jsx'
 import {
   apiAdminCreateLostItem,
   apiAdminGetLostItem,
@@ -12,6 +13,7 @@ import {
 function AdminLostItemFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const isEdit = Boolean(id)
 
   const [loading, setLoading] = useState(false)
@@ -87,8 +89,10 @@ function AdminLostItemFormPage() {
       }
       if (isEdit) {
         await apiAdminUpdateLostItem(id, payload)
+        addToast('记录更新成功', 'success')
       } else {
         await apiAdminCreateLostItem(payload)
+        addToast('记录发布成功', 'success')
       }
       navigate('/admin/lost-items', { replace: true })
     } catch (err) {
@@ -100,6 +104,7 @@ function AdminLostItemFormPage() {
       const msg =
         err?.response?.data?.message || err?.message || '提交失败，请稍后重试'
       setError(msg)
+      addToast(msg, 'danger')
     } finally {
       setSubmitting(false)
     }
@@ -115,57 +120,75 @@ function AdminLostItemFormPage() {
       {error ? <Alert variant="danger">{error}</Alert> : null}
       {loading ? <LoadingCard title="正在加载记录…" lines={2} /> : null}
 
-      <Card as="form" className="form" onSubmit={onSubmit}>
-        <label className="field">
-          <span className="label">标题</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="例如：地铁站捡到一串钥匙"
-            disabled={loading || submitting}
-          />
-        </label>
-        <label className="field">
-          <span className="label">类型</span>
-          <select
-            value={itemType}
-            onChange={(e) => setItemType(e.target.value)}
-            disabled={loading || submitting}
-          >
-            <option value="lost">失物</option>
-            <option value="found">招领</option>
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">状态</span>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            disabled={loading || submitting}
-          >
-            <option value="open">未处理</option>
-            <option value="claimed">已认领</option>
-            <option value="returned">已归还</option>
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">地点</span>
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="例如：A区门口"
-            disabled={loading || submitting}
-          />
-        </label>
-        <label className="field">
-          <span className="label">时间</span>
-          <input
-            value={occurredAt}
-            onChange={(e) => setOccurredAt(e.target.value)}
-            placeholder="例如：2026-03-16 14:30"
-            disabled={loading || submitting}
-          />
-        </label>
+      <Card as="form" className="form stack" onSubmit={onSubmit}>
+        <div className="grid2">
+          <label className="field">
+            <span className="label">标题</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="例如：地铁站捡到一串钥匙"
+              disabled={loading || submitting}
+            />
+          </label>
+          <label className="field">
+            <span className="label">类型</span>
+            <select
+              value={itemType}
+              onChange={(e) => setItemType(e.target.value)}
+              disabled={loading || submitting}
+            >
+              <option value="lost">失物</option>
+              <option value="found">招领</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="grid2">
+          <label className="field">
+            <span className="label">状态</span>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={loading || submitting}
+            >
+              <option value="open">未处理</option>
+              <option value="claimed">已认领</option>
+              <option value="returned">已归还</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">地点</span>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="例如：A区门口"
+              disabled={loading || submitting}
+            />
+          </label>
+        </div>
+
+        <div className="grid2">
+          <label className="field">
+            <span className="label">时间</span>
+            <input
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              placeholder="例如：2026-03-16 14:30"
+              disabled={loading || submitting}
+            />
+          </label>
+          <label className="field">
+            <span className="label">联系方式</span>
+            <input
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="例如：张三 138****0000"
+              disabled={loading || submitting}
+            />
+          </label>
+        </div>
+
         <label className="field">
           <span className="label">描述</span>
           <textarea
@@ -176,18 +199,9 @@ function AdminLostItemFormPage() {
             disabled={loading || submitting}
           />
         </label>
-        <label className="field">
-          <span className="label">联系方式</span>
-          <input
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            placeholder="例如：张三 138****0000"
-            disabled={loading || submitting}
-          />
-        </label>
 
         <div className="actions">
-          <button className="btn" type="submit" disabled={loading || submitting}>
+          <button className="btn btn-primary" type="submit" disabled={loading || submitting}>
             {submitting ? '提交中…' : isEdit ? '保存修改' : '发布'}
           </button>
           <Link className="btn btn-secondary" to="/admin/lost-items">

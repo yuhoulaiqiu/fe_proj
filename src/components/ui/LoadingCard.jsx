@@ -1,6 +1,6 @@
 import Card from './Card.jsx'
 
-function LoadingCard({ title = '加载中…', lines = 2 }) {
+function LoadingCard({ title, lines = 2 }) {
   return (
     <Card>
       <div className="state">
@@ -13,7 +13,7 @@ function LoadingCard({ title = '加载中…', lines = 2 }) {
             style={{ width: `${70 - i * 8}%`, height: 12 }}
           />
         ))}
-        <p className="muted">{title}</p>
+        {title && <p className="muted">{title}</p>}
       </div>
     </Card>
   )

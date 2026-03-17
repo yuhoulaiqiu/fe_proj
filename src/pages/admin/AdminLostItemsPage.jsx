@@ -5,6 +5,7 @@ import Badge from '../../components/ui/Badge.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
 import LoadingCard from '../../components/ui/LoadingCard.jsx'
+import { useToast } from '../../components/ui/Toast.jsx'
 import {
   apiAdminDeleteLostItem,
   apiAdminListLostItems,
@@ -12,11 +13,13 @@ import {
 } from '../../services/adminApi.js'
 
 const TYPE_LABEL = { lost: '失物', found: '招领' }
+const TYPE_BADGE = { lost: 'warning', found: 'success' }
 const STATUS_LABEL = { open: '未处理', claimed: '已认领', returned: '已归还' }
 const STATUS_BADGE = { open: 'warning', claimed: 'neutral', returned: 'success' }
 
 function AdminLostItemsPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [typeInput, setTypeInput] = useState('')
   const [statusInput, setStatusInput] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
@@ -72,6 +75,7 @@ function AdminLostItemsPage() {
     setError('')
     try {
       await apiAdminDeleteLostItem(id)
+      addToast('记录已成功删除', 'success')
       await load()
     } catch (err) {
       if (err?.response?.status === 401) {
@@ -82,6 +86,7 @@ function AdminLostItemsPage() {
       const msg =
         err?.response?.data?.message || err?.message || '删除失败，请稍后重试'
       setError(msg)
+      addToast(msg, 'danger')
     }
   }
 
@@ -89,6 +94,7 @@ function AdminLostItemsPage() {
     setError('')
     try {
       await apiAdminUpdateLostItem(it.id, { ...it, status: nextStatus })
+      addToast(`状态已更新为：${STATUS_LABEL[nextStatus]}`, 'success')
       await load()
     } catch (err) {
       if (err?.response?.status === 401) {
@@ -99,6 +105,7 @@ function AdminLostItemsPage() {
       const msg =
         err?.response?.data?.message || err?.message || '更新失败，请稍后重试'
       setError(msg)
+      addToast(msg, 'danger')
     }
   }
 
@@ -111,7 +118,7 @@ function AdminLostItemsPage() {
             新增、编辑、删除与更新状态{total ? `（共 ${total} 条）` : ''}。
           </p>
         </div>
-        <Link className="btn" to="/admin/lost-items/new">
+        <Link className="btn btn-primary" to="/admin/lost-items/new">
           新增记录
         </Link>
       </div>
@@ -148,7 +155,7 @@ function AdminLostItemsPage() {
           </label>
           <div className="filters-actions">
             <div className="actions">
-              <button className="btn" type="submit" disabled={loading}>
+              <button className="btn btn-primary" type="submit" disabled={loading}>
                 {loading ? '加载中…' : '搜索'}
               </button>
             </div>
@@ -161,14 +168,20 @@ function AdminLostItemsPage() {
         ) : null}
       </Card>
 
-      {items.length ? (
+      {loading ? (
+        <div className="stack">
+          <LoadingCard title="正在加载…" />
+          <LoadingCard />
+          <LoadingCard />
+        </div>
+      ) : items.length ? (
         items.map((it) => (
           <Card key={it.id}>
             <div className="row-between">
               <div className="grow">
                 <h2 className="card-title">{it.title || '未命名记录'}</h2>
                 <div className="chips">
-                  <Badge variant="neutral">
+                  <Badge variant={TYPE_BADGE[it.itemType] || 'neutral'}>
                     {`类型：${TYPE_LABEL[it.itemType] || it.itemType || '-'}`}
                   </Badge>
                   <Badge variant={STATUS_BADGE[it.status] || 'neutral'}>
@@ -194,7 +207,7 @@ function AdminLostItemsPage() {
                   </select>
                 </label>
                 <div className="actions">
-                  <Link className="btn btn-secondary" to={`/admin/lost-items/${it.id}/edit`}>
+                  <Link className="btn btn-primary" to={`/admin/lost-items/${it.id}/edit`}>
                     编辑
                   </Link>
                   <button
@@ -209,8 +222,6 @@ function AdminLostItemsPage() {
             </div>
           </Card>
         ))
-      ) : loading ? (
-        <LoadingCard title="正在加载…" />
       ) : (
         <EmptyState description="暂无记录，点击“新增记录”发布第一条信息。" />
       )}

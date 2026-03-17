@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Alert from '../../components/ui/Alert.jsx'
 import Card from '../../components/ui/Card.jsx'
+import { useToast } from '../../components/ui/Toast.jsx'
 import { apiLogin } from '../../services/adminApi.js'
 
 function AdminLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { addToast } = useToast()
   const redirectTo = useMemo(() => {
     const from = location.state?.from?.pathname
     return from && from.startsWith('/admin') ? from : '/admin'
@@ -24,11 +26,13 @@ function AdminLoginPage() {
     try {
       const res = await apiLogin({ username, password })
       localStorage.setItem('admin_token', res.token)
+      addToast('登录成功', 'success')
       navigate(redirectTo, { replace: true })
     } catch (err) {
       const msg =
         err?.response?.data?.message || err?.message || '登录失败，请稍后重试'
       setError(msg)
+      addToast(msg, 'danger')
     } finally {
       setSubmitting(false)
     }

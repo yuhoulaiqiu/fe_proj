@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Alert from '../components/ui/Alert.jsx'
+import Badge from '../components/ui/Badge.jsx'
 import Card from '../components/ui/Card.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
@@ -78,22 +79,36 @@ function ActivitiesPage() {
         ) : null}
       </Card>
 
-      {items.length ? (
-        items.map((it) => (
-          <Card key={it.id}>
-            <div className="row-between">
-              <div>
-                <h2 className="card-title">{it.title || '未命名活动'}</h2>
-                <p className="muted">{it.summary || '暂无简介'}</p>
+      {loading ? (
+        <div className="stack">
+          <LoadingCard title="正在加载活动列表…" />
+          <LoadingCard />
+          <LoadingCard />
+        </div>
+      ) : items.length ? (
+        <div className="stack">
+          {items.map((it) => (
+            <Card key={it.id}>
+              <div className="row-between">
+                <div className="grow">
+                  <div className="chips" style={{ marginBottom: '8px' }}>
+                    {it.category && <Badge variant="neutral">{it.category}</Badge>}
+                    {it.status && (
+                      <Badge variant={it.status === 'active' ? 'success' : 'warning'}>
+                        {it.status === 'active' ? '报名中' : '已结束'}
+                      </Badge>
+                    )}
+                  </div>
+                  <h2 className="card-title">{it.title || '未命名活动'}</h2>
+                  <p className="muted">{it.summary || '暂无简介'}</p>
+                </div>
+                <Link className="btn btn-secondary" to={`/activities/${it.id}`}>
+                  查看详情
+                </Link>
               </div>
-              <Link className="btn btn-secondary" to={`/activities/${it.id}`}>
-                查看详情
-              </Link>
-            </div>
-          </Card>
-        ))
-      ) : loading ? (
-        <LoadingCard title="正在加载活动列表…" />
+            </Card>
+          ))}
+        </div>
       ) : (
         <EmptyState description="暂未找到符合条件的活动，试试调整关键词。" />
       )}
