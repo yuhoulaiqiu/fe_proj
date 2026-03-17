@@ -1,0 +1,8 @@
+- [x] 使用 Gin 启动服务并提供 /health
+- [x] 现有 API 路径保持兼容（/api/auth、/api/activities、/api/services、/api/lost-items、/api/admin/lost-items）
+- [x] 鉴权逻辑可用（登录返回 token，管理员接口校验 token）
+- [x] MySQL 连接与迁移可用（启动自动建表，schema.mysql.sql 可重复执行）
+- [x] 删除业务假数据写入（不自动插入活动/服务/失物示例数据）
+- [x] 空库行为正确（列表接口返回空 items/total=0）
+- [x] 文档更新（README 反映 Gin 与启动方式）
+- [x] 编译验证通过（go test ./...）

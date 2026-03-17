@@ -4,7 +4,7 @@
 
 ## 目录结构
 - src/：前端（React + React Router + Axios）
-- server/：后端（Go + SQLite），提供 /api 接口与数据表
+- server/：后端（Go + Gin + MySQL），提供 /api 接口与数据表
 
 ## 功能入口
 - 用户端：
@@ -19,7 +19,7 @@
 ## 本地开发运行
 
 ### 1) 启动后端 API（Go）
-前置条件：已安装 Go（建议 1.22+）。
+前置条件：已安装 Go（建议 1.19+）。
 
 ```bash
 cd server
@@ -28,7 +28,7 @@ go run .
 
 默认启动：
 - API 地址：http://localhost:8080
-- SQLite 数据库文件：server/data/app.db（首次启动自动创建表并写入示例数据）
+- MySQL 数据库：community_help_hub（首次启动自动创建表；数据库需提前创建）
 
 默认管理员账号（可通过环境变量覆盖）：
 - 用户名：admin
@@ -36,10 +36,17 @@ go run .
 
 可选环境变量：
 - PORT：后端端口（默认 8080）
-- DB_PATH：数据库路径（默认 ./data/app.db）
+- MYSQL_DSN：MySQL 连接串（优先使用）
+- MYSQL_HOST / MYSQL_PORT / MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE：用于拼接 DSN（默认 host=127.0.0.1, port=3306, user=root, database=community_help_hub）
 - ADMIN_USERNAME / ADMIN_PASSWORD：初始化管理员账号密码
+- ADMIN_INIT：是否初始化管理员账号（默认开启；可设为 0/false/off/no 关闭）
 - CORS_ORIGINS：允许的前端来源（逗号分隔），例如：
   - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+初始化数据库与表（示例）：
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -p < server/schema.mysql.sql
+```
 
 ### 2) 启动前端（React + Vite）
 前置条件：Node.js 版本需满足 Vite 要求（建议 20.19+ 或 22.12+）。
