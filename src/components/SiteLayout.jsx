@@ -72,11 +72,11 @@ function SiteLayout() {
               失物招领
             </NavLink>
             <NavLink
-              to="/admin"
+              to="/user-center"
               className="nav-link"
               onClick={closeMenu}
             >
-              后台
+              个人中心
             </NavLink>
           </nav>
         </div>

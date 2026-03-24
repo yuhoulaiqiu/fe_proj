@@ -14,6 +14,13 @@ function ActivityDetailPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [data, setData] = useState(null)
+  const [isRegistered, setIsRegistered] = useState(false)
+
+  useEffect(() => {
+    const registered = JSON.parse(localStorage.getItem('registered_activities') || '[]')
+    // 将 id 转为字符串进行比较，确保一致性
+    setIsRegistered(registered.includes(String(id)))
+  }, [id])
 
   useEffect(() => {
     let cancelled = false
@@ -46,7 +53,14 @@ function ActivityDetailPage() {
   }
 
   const onRegister = () => {
-    addToast('报名申请已提交，请等待社区确认', 'success')
+    const registered = JSON.parse(localStorage.getItem('registered_activities') || '[]')
+    const stringId = String(id)
+    if (!registered.includes(stringId)) {
+      registered.push(stringId)
+      localStorage.setItem('registered_activities', JSON.stringify(registered))
+      setIsRegistered(true)
+      addToast('报名成功！', 'success')
+    }
   }
 
   return (
@@ -113,10 +127,10 @@ function ActivityDetailPage() {
                 <button
                   className="btn"
                   style={{ padding: '12px 32px', fontSize: '18px', width: '100%' }}
-                  disabled={data.status !== 'active'}
+                  disabled={data.status !== 'active' || isRegistered}
                   onClick={onRegister}
                 >
-                  {data.status === 'active' ? '立即报名' : '报名已结束'}
+                  {isRegistered ? '已报名' : data.status === 'active' ? '立即报名' : '报名已结束'}
                 </button>
               </div>
             </div>

@@ -13,9 +13,14 @@ function AdminLayout() {
       <header className="admin-header">
         <div className="container header-inner">
           <span className="brand">后台管理</span>
-          <button type="button" className="btn btn-secondary" onClick={onLogout}>
-            退出登录
-          </button>
+          <div className="header-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+            <NavLink to="/" className="btn btn-outline">
+              返回首页
+            </NavLink>
+            <button type="button" className="btn btn-secondary" onClick={onLogout}>
+              退出登录
+            </button>
+          </div>
         </div>
       </header>
       <div className="admin-body container">
