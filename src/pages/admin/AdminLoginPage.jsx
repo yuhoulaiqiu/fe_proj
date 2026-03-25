@@ -39,13 +39,14 @@ function AdminLoginPage() {
   }
 
   return (
-    <div className="stack">
-      <div className="page-header">
-        <h1 className="page-title">后台登录</h1>
-        <p className="muted">用于管理失物招领信息（CRUD）。</p>
-      </div>
+    <div className="auth-page-container">
+      <div className="stack" style={{ width: '100%', maxWidth: '400px' }}>
+        <div className="page-header" style={{ textAlign: 'center' }}>
+          <h1 className="page-title">后台登录</h1>
+          <p className="muted">用于管理失物招领信息（CRUD）。</p>
+        </div>
 
-      <Card as="form" className="form" onSubmit={onSubmit}>
+        <Card as="form" className="form" onSubmit={onSubmit} style={{ maxWidth: '100%' }}>
         <label className="field">
           <span className="label">账号</span>
           <input
@@ -71,7 +72,8 @@ function AdminLoginPage() {
         <button className="btn" type="submit" disabled={submitting}>
           {submitting ? '登录中…' : '登录'}
         </button>
-      </Card>
+        </Card>
+      </div>
     </div>
   )
 }

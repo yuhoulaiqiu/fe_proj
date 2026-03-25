@@ -599,6 +599,14 @@
   }
 }
 
+.auth-page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
 .admin-body {
   display: grid;
   grid-template-columns: 240px 1fr;
