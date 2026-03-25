@@ -11,6 +11,7 @@ import {
   apiGetUserRegisteredActivities,
   apiRegisterActivity,
 } from '../services/publicApi.js'
+import { copyText } from '../utils/copyText.js'
 
 function ActivityDetailPage() {
   const { id } = useParams()
@@ -69,10 +70,9 @@ function ActivityDetailPage() {
     }
   }, [id])
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      addToast('电话已复制', 'success')
-    })
+  const handleCopy = async (text) => {
+    const ok = await copyText(text)
+    addToast(ok ? '电话已复制' : '复制失败，请手动复制', ok ? 'success' : 'danger')
   }
 
   const onRegister = async () => {
@@ -144,6 +144,7 @@ function ActivityDetailPage() {
                       <button
                         className="btn btn-secondary"
                         style={{ padding: '2px 8px', fontSize: '14px' }}
+                        type="button"
                         onClick={() => handleCopy(data.phone)}
                         title="点击复制"
                       >

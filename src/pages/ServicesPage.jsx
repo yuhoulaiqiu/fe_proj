@@ -7,6 +7,7 @@ import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { useToast } from '../components/ui/Toast.jsx'
 import { apiGetServices } from '../services/publicApi.js'
+import { copyText } from '../utils/copyText.js'
 
 function ServicesPage() {
   const { addToast } = useToast()
@@ -48,10 +49,9 @@ function ServicesPage() {
     }
   }, [query.category, query.keyword])
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      addToast('号码已复制', 'success')
-    })
+  const handleCopy = async (text) => {
+    const ok = await copyText(text)
+    addToast(ok ? '号码已复制' : '复制失败，请手动复制', ok ? 'success' : 'danger')
   }
 
   function onSearch(e) {
@@ -131,6 +131,7 @@ function ServicesPage() {
                       <button
                         className="badge badge-neutral"
                         style={{ cursor: 'pointer', borderStyle: 'dashed' }}
+                        type="button"
                         onClick={() => handleCopy(it.phone)}
                         title="点击复制号码"
                       >
