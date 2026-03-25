@@ -1,11 +1,9 @@
 USE community_help_hub;
 
 -- 1. 插入测试用户 (users)
--- 注意：这里的 password_hash 是使用 bcrypt 加密后的 "admin123" 的哈希值
--- 如果你的后端有自动初始化逻辑，这一步可以跳过，或者作为备用账号
-INSERT INTO users (username, password_hash, role, created_at) VALUES
-('admin', '$2a$10$X7.mXU7ZqN1G3.5Gz.qR.e8Z.qR.e8Z.qR.e8Z.qR.e8Z.qR.e8Z', 'admin', '2026-03-17 10:00:00'),
-('staff_01', '$2a$10$X7.mXU7ZqN1G3.5Gz.qR.e8Z.qR.e8Z.qR.e8Z.qR.e8Z.qR.e8Z', 'staff', '2026-03-17 10:05:00');
+INSERT INTO users (username, password, password_hash, role, created_at) VALUES
+('admin', 'admin123', '', 'admin', '2026-03-17 10:00:00'),
+('staff_01', 'admin123', '', 'staff', '2026-03-17 10:05:00');
 
 
 -- 3. 插入测试公益活动 (activities)

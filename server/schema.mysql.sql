@@ -4,7 +4,8 @@ USE community_help_hub;
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT NOT NULL AUTO_INCREMENT,
   username VARCHAR(191) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL DEFAULT '',
   role VARCHAR(32) NOT NULL,
   created_at VARCHAR(64) NOT NULL,
   PRIMARY KEY (id),

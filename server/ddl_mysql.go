@@ -1,13 +1,19 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+	"errors"
+
+	"github.com/go-sql-driver/mysql"
+)
 
 func migrate(db *sql.DB) error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id BIGINT NOT NULL AUTO_INCREMENT,
 			username VARCHAR(191) NOT NULL,
-			password_hash VARCHAR(255) NOT NULL,
+			password VARCHAR(255) NOT NULL,
+			password_hash VARCHAR(255) NOT NULL DEFAULT '',
 			role VARCHAR(32) NOT NULL,
 			created_at VARCHAR(64) NOT NULL,
 			PRIMARY KEY (id),
@@ -66,6 +72,13 @@ func migrate(db *sql.DB) error {
 
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {
+			return err
+		}
+	}
+
+	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT ''`); err != nil {
+		var me *mysql.MySQLError
+		if !(errors.As(err, &me) && me.Number == 1060) {
 			return err
 		}
 	}

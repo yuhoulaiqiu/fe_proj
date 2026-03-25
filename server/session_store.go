@@ -24,15 +24,12 @@ func ensureAdminUser(db *sql.DB) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
 	now := time.Now().Format(time.RFC3339)
 	_, err = db.Exec(
-		"INSERT INTO users (username, password_hash, role, created_at) VALUES (?,?,?,?)",
+		"INSERT INTO users (username, password, password_hash, role, created_at) VALUES (?,?,?,?,?)",
 		adminUser,
-		string(hash),
+		adminPass,
+		"",
 		"admin",
 		now,
 	)
@@ -41,27 +38,33 @@ func ensureAdminUser(db *sql.DB) error {
 
 func verifyUser(db *sql.DB, username, password string) (int64, string, error) {
 	var id int64
-	var hash, role string
-	err := db.QueryRow("SELECT id, password_hash, role FROM users WHERE username = ?", username).Scan(&id, &hash, &role)
+	var storedPass, hash, role string
+	err := db.QueryRow("SELECT id, password, password_hash, role FROM users WHERE username = ?", username).Scan(&id, &storedPass, &hash, &role)
 	if err != nil {
 		return 0, "", err
 	}
+	if storedPass != "" {
+		if storedPass != password {
+			return 0, "", errors.New("invalid_credentials")
+		}
+		return id, role, nil
+	}
+	if hash == "" {
+		return 0, "", errors.New("invalid_credentials")
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return 0, "", err
+		return 0, "", errors.New("invalid_credentials")
 	}
 	return id, role, nil
 }
 
 func createUser(db *sql.DB, username, password, role string) (int64, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return 0, err
-	}
 	now := time.Now().Format(time.RFC3339)
 	res, err := db.Exec(
-		"INSERT INTO users (username, password_hash, role, created_at) VALUES (?,?,?,?)",
+		"INSERT INTO users (username, password, password_hash, role, created_at) VALUES (?,?,?,?,?)",
 		username,
-		string(hash),
+		password,
+		"",
 		role,
 		now,
 	)

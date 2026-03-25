@@ -40,14 +40,54 @@ func TestLogin(t *testing.T) {
 	}
 	defer db.Close()
 
+	mock.ExpectQuery("SELECT id, password, password_hash, role FROM users WHERE username = \\?").
+		WithArgs("admin").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "password", "password_hash", "role"}).AddRow(int64(1), "admin123", "", "admin"))
+
+	mock.ExpectExec("INSERT INTO sessions \\(token, user_id, expires_at, created_at\\) VALUES \\(\\?,\\?,\\?,\\?\\)").
+		WithArgs(sqlmock.AnyArg(), int64(1), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	r := newTestRouter(t, db)
+
+	body, _ := json.Marshal(map[string]any{"username": "admin", "password": "admin123"})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	var res loginResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Token == "" || res.User.ID != 1 || res.User.Role != "admin" {
+		t.Fatalf("unexpected response: %+v", res)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoginLegacyHash(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
 	hash, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mock.ExpectQuery("SELECT id, password_hash, role FROM users WHERE username = \\?").
+	mock.ExpectQuery("SELECT id, password, password_hash, role FROM users WHERE username = \\?").
 		WithArgs("admin").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "password_hash", "role"}).AddRow(int64(1), string(hash), "admin"))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "password", "password_hash", "role"}).AddRow(int64(1), "", string(hash), "admin"))
 
 	mock.ExpectExec("INSERT INTO sessions \\(token, user_id, expires_at, created_at\\) VALUES \\(\\?,\\?,\\?,\\?\\)").
 		WithArgs(sqlmock.AnyArg(), int64(1), sqlmock.AnyArg(), sqlmock.AnyArg()).
