@@ -32,6 +32,9 @@ func migrate(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS activities (
 			id BIGINT NOT NULL AUTO_INCREMENT,
 			title VARCHAR(255) NOT NULL,
+			category VARCHAR(64) NOT NULL DEFAULT '其他',
+			status VARCHAR(32) NOT NULL DEFAULT 'active',
+			user_id BIGINT NOT NULL DEFAULT 0,
 			cover_url TEXT NOT NULL,
 			summary TEXT NOT NULL,
 			content MEDIUMTEXT NOT NULL,
@@ -39,7 +42,18 @@ func migrate(db *sql.DB) error {
 			start_time VARCHAR(64) NOT NULL,
 			end_time VARCHAR(64) NOT NULL,
 			created_at VARCHAR(64) NOT NULL,
+			deleted_at VARCHAR(64) NULL,
 			PRIMARY KEY (id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
+		`CREATE TABLE IF NOT EXISTS activity_registrations (
+			id BIGINT NOT NULL AUTO_INCREMENT,
+			activity_id BIGINT NOT NULL,
+			user_id BIGINT NOT NULL,
+			status VARCHAR(32) NOT NULL DEFAULT 'pending',
+			created_at VARCHAR(64) NOT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY uk_activity_user (activity_id, user_id),
+			KEY idx_registrations_user_id (user_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
 		`CREATE TABLE IF NOT EXISTS services (
 			id BIGINT NOT NULL AUTO_INCREMENT,
@@ -68,6 +82,21 @@ func migrate(db *sql.DB) error {
 			KEY idx_lost_items_deleted_at (deleted_at),
 			KEY idx_lost_items_type_status (item_type, status)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
+		`CREATE TABLE IF NOT EXISTS notifications (
+			id BIGINT NOT NULL AUTO_INCREMENT,
+			user_id BIGINT NOT NULL,
+			kind VARCHAR(64) NOT NULL,
+			title VARCHAR(255) NOT NULL,
+			content TEXT NOT NULL,
+			activity_id BIGINT NULL,
+			scheduled_for VARCHAR(64) NOT NULL,
+			read_at VARCHAR(64) NULL,
+			created_at VARCHAR(64) NOT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY uk_notifications_user_activity_kind (user_id, activity_id, kind),
+			KEY idx_notifications_user_scheduled (user_id, scheduled_for),
+			KEY idx_notifications_read_at (read_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
 	}
 
 	for _, s := range stmts {
@@ -77,6 +106,31 @@ func migrate(db *sql.DB) error {
 	}
 
 	if _, err := db.Exec(`ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT ''`); err != nil {
+		var me *mysql.MySQLError
+		if !(errors.As(err, &me) && me.Number == 1060) {
+			return err
+		}
+	}
+
+	if _, err := db.Exec(`ALTER TABLE activities ADD COLUMN category VARCHAR(64) NOT NULL DEFAULT '其他'`); err != nil {
+		var me *mysql.MySQLError
+		if !(errors.As(err, &me) && me.Number == 1060) {
+			return err
+		}
+	}
+	if _, err := db.Exec(`ALTER TABLE activities ADD COLUMN status VARCHAR(32) NOT NULL DEFAULT 'active'`); err != nil {
+		var me *mysql.MySQLError
+		if !(errors.As(err, &me) && me.Number == 1060) {
+			return err
+		}
+	}
+	if _, err := db.Exec(`ALTER TABLE activities ADD COLUMN user_id BIGINT NOT NULL DEFAULT 0`); err != nil {
+		var me *mysql.MySQLError
+		if !(errors.As(err, &me) && me.Number == 1060) {
+			return err
+		}
+	}
+	if _, err := db.Exec(`ALTER TABLE activities ADD COLUMN deleted_at VARCHAR(64) NULL`); err != nil {
 		var me *mysql.MySQLError
 		if !(errors.As(err, &me) && me.Number == 1060) {
 			return err

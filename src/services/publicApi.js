@@ -40,6 +40,38 @@ export async function apiCreateActivity(payload) {
   return data
 }
 
+export async function apiUpdateActivity(id, payload) {
+  const { data } = await http.put(`/api/activities/${id}`, payload)
+  return data
+}
+
+export async function apiDeleteActivity(id) {
+  const { data } = await http.delete(`/api/activities/${id}`)
+  return data
+}
+
+export async function apiGetActivityRegistrations(id) {
+  const { data } = await http.get(`/api/activities/${id}/registrations`)
+  return data
+}
+
+export async function apiExportActivityRegistrationsCsv(id) {
+  const res = await http.get(`/api/activities/${id}/registrations.csv`, {
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+export async function apiGetNotifications(params) {
+  const { data } = await http.get('/api/notifications', { params })
+  return normalizeList(data)
+}
+
+export async function apiMarkNotificationRead(id) {
+  const { data } = await http.post(`/api/notifications/${id}/read`)
+  return data
+}
+
 export async function apiGetServices(params) {
   const { data } = await http.get('/api/services', { params })
   return normalizeList(data)

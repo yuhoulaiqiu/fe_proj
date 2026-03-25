@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/csv"
 	"errors"
 	"net/http"
 	"strconv"
@@ -111,6 +113,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 	}
 
 	r.GET("/api/activities", func(c *gin.Context) {
+		_ = reconcileActivities(db, time.Now())
 		category := strings.TrimSpace(c.Query("category"))
 		status := strings.TrimSpace(c.Query("status"))
 		keyword := strings.TrimSpace(c.Query("keyword"))
@@ -129,6 +132,7 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 			writeError(c, http.StatusBadRequest, "invalid_id")
 			return
 		}
+		_, _ = reconcileActivityStatusByID(db, id, time.Now())
 		it, err := getActivity(db, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(c, http.StatusNotFound, "not_found")
@@ -144,6 +148,165 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 	user := r.Group("/api")
 	user.Use(requireAuth(db))
 	{
+		user.GET("/notifications", func(c *gin.Context) {
+			page, pageSize := parsePage(c)
+			userID := c.MustGet("user_id").(int64)
+			items, total, err := listUserNotifications(db, userID, page, pageSize)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, listResponse[Notification]{Items: items, Total: total, Page: page, PageSize: pageSize})
+		})
+
+		user.POST("/notifications/:id/read", func(c *gin.Context) {
+			notificationID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			if err := markNotificationRead(db, userID, notificationID); err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, map[string]any{"ok": true})
+		})
+
+		user.PUT("/activities/:id", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			var it Activity
+			if err := c.ShouldBindJSON(&it); err != nil {
+				writeError(c, http.StatusBadRequest, "invalid_json")
+				return
+			}
+			it.Title = strings.TrimSpace(it.Title)
+			it.Category = strings.TrimSpace(it.Category)
+			it.Status = strings.TrimSpace(it.Status)
+			if it.Title == "" {
+				writeError(c, http.StatusBadRequest, "missing_title")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			if err := updateActivityByOwner(db, activityID, userID, it); err != nil {
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errForbidden):
+					writeError(c, http.StatusForbidden, "forbidden")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
+			}
+			_, _ = reconcileActivityStatusByID(db, activityID, time.Now())
+			updated, err := getActivity(db, activityID)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, updated)
+		})
+
+		user.DELETE("/activities/:id", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			if err := deleteActivityByOwner(db, activityID, userID); err != nil {
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errForbidden):
+					writeError(c, http.StatusForbidden, "forbidden")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
+			}
+			c.JSON(http.StatusOK, map[string]any{"ok": true})
+		})
+
+		user.GET("/activities/:id/registrations", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			items, err := listActivityRegistrationsByOwner(db, activityID, userID)
+			if err != nil {
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errForbidden):
+					writeError(c, http.StatusForbidden, "forbidden")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
+			}
+			c.JSON(http.StatusOK, items)
+		})
+
+		user.GET("/activities/:id/registrations.csv", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			items, err := listActivityRegistrationsByOwner(db, activityID, userID)
+			if err != nil {
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errForbidden):
+					writeError(c, http.StatusForbidden, "forbidden")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
+			}
+
+			var buf bytes.Buffer
+			w := csv.NewWriter(&buf)
+			_ = w.Write([]string{"registration_id", "activity_id", "user_id", "username", "status", "created_at"})
+			for _, it := range items {
+				_ = w.Write([]string{
+					strconv.FormatInt(it.ID, 10),
+					strconv.FormatInt(it.ActivityID, 10),
+					strconv.FormatInt(it.UserID, 10),
+					it.Username,
+					it.Status,
+					it.CreatedAt,
+				})
+			}
+			w.Flush()
+			if err := w.Error(); err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+
+			c.Header("Content-Type", "text/csv; charset=utf-8")
+			c.Header("Content-Disposition", "attachment; filename=\"activity_registrations.csv\"")
+			c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
+		})
+
 		user.POST("/activities/:id/register", func(c *gin.Context) {
 			activityID, ok := parseID(c.Param("id"))
 			if !ok {
@@ -152,8 +315,23 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 			}
 			userID := c.MustGet("user_id").(int64)
 			if err := registerActivity(db, activityID, userID); err != nil {
-				writeError(c, http.StatusInternalServerError, "server_error")
-				return
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errAlreadyRegistered):
+					writeError(c, http.StatusConflict, "already_registered")
+					return
+				case errors.Is(err, errRegistrationClosed):
+					writeError(c, http.StatusConflict, "registration_closed")
+					return
+				case errors.Is(err, errActivityTimeInvalid):
+					writeError(c, http.StatusBadRequest, "activity_time_invalid")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
 			}
 			c.JSON(http.StatusOK, map[string]any{"ok": true})
 		})

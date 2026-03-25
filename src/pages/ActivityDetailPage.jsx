@@ -21,6 +21,13 @@ function ActivityDetailPage() {
   const [error, setError] = useState('')
   const [data, setData] = useState(null)
   const [isRegistered, setIsRegistered] = useState(false)
+  const [ownerId] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('auth_user') || '{}')?.id
+    } catch {
+      return undefined
+    }
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -119,8 +126,24 @@ function ActivityDetailPage() {
                 <div className="chips" style={{ marginBottom: '12px' }}>
                   {data.category && <Badge variant="neutral">{data.category}</Badge>}
                   {data.status && (
-                    <Badge variant={data.status === 'active' ? 'success' : 'warning'}>
-                      {data.status === 'active' ? '进行中' : '已结束'}
+                    <Badge
+                      variant={
+                        data.status === 'active'
+                          ? 'success'
+                          : data.status === 'closed'
+                            ? 'warning'
+                            : data.status === 'cancelled'
+                              ? 'danger'
+                              : 'warning'
+                      }
+                    >
+                      {data.status === 'active'
+                        ? '报名中'
+                        : data.status === 'closed'
+                          ? '报名截止'
+                          : data.status === 'cancelled'
+                            ? '已取消'
+                            : '已结束'}
                     </Badge>
                   )}
                 </div>
@@ -155,14 +178,32 @@ function ActivityDetailPage() {
                 </div>
               </div>
               <div className="minw-240" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                <button
-                  className="btn"
-                  style={{ padding: '12px 32px', fontSize: '18px', width: '100%' }}
-                  disabled={data.status !== 'active' || isRegistered}
-                  onClick={onRegister}
-                >
-                  {isRegistered ? '已报名' : data.status === 'active' ? '立即报名' : '报名已结束'}
-                </button>
+                <div className="stack" style={{ gap: '10px', width: '100%' }}>
+                  <button
+                    className="btn"
+                    style={{ padding: '12px 32px', fontSize: '18px', width: '100%' }}
+                    disabled={data.status !== 'active' || isRegistered}
+                    onClick={onRegister}
+                  >
+                    {isRegistered
+                      ? '已报名'
+                      : data.status === 'active'
+                        ? '立即报名'
+                        : data.status === 'closed'
+                          ? '报名已截止'
+                          : '不可报名'}
+                  </button>
+                  {ownerId && String(ownerId) === String(data.userId) ? (
+                    <div className="actions" style={{ justifyContent: 'flex-end' }}>
+                      <Link className="btn btn-secondary" to={`/activities/${id}/edit`}>
+                        编辑活动
+                      </Link>
+                      <Link className="btn btn-secondary" to={`/activities/${id}/registrations`}>
+                        报名管理
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </Card>

@@ -125,10 +125,13 @@ func TestListActivitiesEmpty(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("SELECT COUNT\\(1\\) FROM activities").
+	mock.ExpectQuery("SELECT id, status, start_time, end_time FROM activities WHERE deleted_at IS NULL").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "status", "start_time", "end_time"}))
+
+	mock.ExpectQuery("SELECT COUNT\\(1\\) FROM activities WHERE deleted_at IS NULL").
 		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(int64(0)))
 
-	mock.ExpectQuery("SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities").
+	mock.ExpectQuery("SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE deleted_at IS NULL").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "category", "status", "user_id", "cover_url", "summary", "content", "location", "start_time", "end_time", "created_at"}))
 
 	r := newTestRouter(t, db)
@@ -151,6 +154,134 @@ func TestListActivitiesEmpty(t *testing.T) {
 	}
 	if res.Total != 0 || len(res.Items) != 0 {
 		t.Fatalf("unexpected response: %+v", res)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRegisterActivityClosed(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	token := "t"
+	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
+		WithArgs(token).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(1), expiresAt))
+
+	startAt := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
+	endAt := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	mock.ExpectQuery("SELECT status, start_time, end_time, title FROM activities WHERE id = \\? AND deleted_at IS NULL").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"status", "start_time", "end_time", "title"}).AddRow("active", startAt, endAt, "活动"))
+
+	mock.ExpectExec("UPDATE activities SET status = \\? WHERE id = \\? AND status <> 'cancelled'").
+		WithArgs("closed", int64(1)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	r := newTestRouter(t, db)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/activities/1/register", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateActivityForbidden(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	token := "t"
+	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
+		WithArgs(token).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(2), expiresAt))
+
+	mock.ExpectQuery("SELECT user_id FROM activities WHERE id = \\? AND deleted_at IS NULL").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(int64(1)))
+
+	r := newTestRouter(t, db)
+	body, _ := json.Marshal(map[string]any{
+		"title":     "t",
+		"category":  "c",
+		"status":    "active",
+		"coverUrl":  "",
+		"summary":   "",
+		"content":   "",
+		"location":  "l",
+		"startTime": "2026-01-01 10:00:00",
+		"endTime":   "2026-01-01 11:00:00",
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/activities/1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRegisterActivityCreatesReminders(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	token := "t"
+	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
+		WithArgs(token).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(1), expiresAt))
+
+	startAt := time.Now().Add(48 * time.Hour).UTC()
+	endAt := startAt.Add(2 * time.Hour)
+	mock.ExpectQuery("SELECT status, start_time, end_time, title FROM activities WHERE id = \\? AND deleted_at IS NULL").
+		WithArgs(int64(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"status", "start_time", "end_time", "title"}).
+			AddRow("active", startAt.Format(time.RFC3339), endAt.Format(time.RFC3339), "活动A"))
+
+	mock.ExpectExec("INSERT INTO activity_registrations \\(activity_id, user_id, status, created_at\\) VALUES \\(\\?, \\?, 'pending', \\?\\)").
+		WithArgs(int64(5), int64(1), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectExec("INSERT INTO notifications \\(user_id, kind, title, content, activity_id, scheduled_for, created_at\\)").
+		WithArgs(int64(1), "activity_start_24h", "活动提醒", "活动A 将于 "+startAt.Format(time.RFC3339)+" 开始（提前 24 小时提醒）", int64(5), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO notifications \\(user_id, kind, title, content, activity_id, scheduled_for, created_at\\)").
+		WithArgs(int64(1), "activity_start_1h", "活动提醒", "活动A 将于 "+startAt.Format(time.RFC3339)+" 开始（提前 1 小时提醒）", int64(5), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	r := newTestRouter(t, db)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/activities/5/register", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

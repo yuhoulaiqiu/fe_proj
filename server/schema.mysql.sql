@@ -36,8 +36,10 @@ CREATE TABLE IF NOT EXISTS activities (
   start_time VARCHAR(64) NOT NULL,
   end_time VARCHAR(64) NOT NULL,
   created_at VARCHAR(64) NOT NULL,
+  deleted_at VARCHAR(64) NULL,
   PRIMARY KEY (id),
-  KEY idx_activities_category_status (category, status)
+  KEY idx_activities_category_status (category, status),
+  KEY idx_activities_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS activity_registrations (
@@ -78,4 +80,20 @@ CREATE TABLE IF NOT EXISTS lost_items (
   PRIMARY KEY (id),
   KEY idx_lost_items_deleted_at (deleted_at),
   KEY idx_lost_items_type_status (item_type, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  kind VARCHAR(64) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  activity_id BIGINT NULL,
+  scheduled_for VARCHAR(64) NOT NULL,
+  read_at VARCHAR(64) NULL,
+  created_at VARCHAR(64) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_notifications_user_activity_kind (user_id, activity_id, kind),
+  KEY idx_notifications_user_scheduled (user_id, scheduled_for),
+  KEY idx_notifications_read_at (read_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

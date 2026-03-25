@@ -8,6 +8,8 @@ import ToastProvider from './components/ui/Toast.jsx'
 import ActivitiesPage from './pages/ActivitiesPage.jsx'
 import ActivityCreatePage from './pages/ActivityCreatePage.jsx'
 import ActivityDetailPage from './pages/ActivityDetailPage.jsx'
+import ActivityEditPage from './pages/ActivityEditPage.jsx'
+import ActivityRegistrationsPage from './pages/ActivityRegistrationsPage.jsx'
 import AdminLostItemFormPage from './pages/admin/AdminLostItemFormPage.jsx'
 import AdminLostItemsPage from './pages/admin/AdminLostItemsPage.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -40,6 +42,8 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="/activities" element={<ActivitiesPage />} />
           <Route path="/activities/new" element={<ActivityCreatePage />} />
+          <Route path="/activities/:id/edit" element={<ActivityEditPage />} />
+          <Route path="/activities/:id/registrations" element={<ActivityRegistrationsPage />} />
           <Route path="/activities/:id" element={<ActivityDetailPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/services/:id" element={<ServiceDetailPage />} />

@@ -23,6 +23,26 @@ type ActivityRegistration struct {
 	CreatedAt  string `json:"createdAt"`
 }
 
+type ActivityRegistrationView struct {
+	ID         int64  `json:"id"`
+	ActivityID int64  `json:"activityId"`
+	UserID     int64  `json:"userId"`
+	Username   string `json:"username"`
+	Status     string `json:"status"`
+	CreatedAt  string `json:"createdAt"`
+}
+
+type Notification struct {
+	ID           int64  `json:"id"`
+	Kind         string `json:"kind"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	ActivityID   int64  `json:"activityId,omitempty"`
+	ScheduledFor string `json:"scheduledFor"`
+	ReadAt       string `json:"readAt,omitempty"`
+	CreatedAt    string `json:"createdAt"`
+}
+
 type Service struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`

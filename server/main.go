@@ -48,6 +48,7 @@ func main() {
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(withCORS(origins))
 	registerRoutes(r, db)
+	startBackgroundJobs(db)
 
 	addr := ":" + port
 	log.Printf("server listening on %s", addr)
