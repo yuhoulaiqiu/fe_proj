@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Alert from '../../components/ui/Alert.jsx'
 import Card from '../../components/ui/Card.jsx'
 import { useToast } from '../../components/ui/Toast.jsx'
@@ -11,7 +11,7 @@ function AdminLoginPage() {
   const { addToast } = useToast()
   const redirectTo = useMemo(() => {
     const from = location.state?.from?.pathname
-    return from && from.startsWith('/admin') ? from : '/admin'
+    return from && from.startsWith('/admin') ? from : '/'
   }, [location.state])
 
   const [username, setUsername] = useState('admin')
@@ -74,6 +74,15 @@ function AdminLoginPage() {
         <button className="btn" type="submit" disabled={submitting}>
           {submitting ? '登录中…' : '登录'}
         </button>
+
+        <div className="row-center mt-3" style={{ gap: '12px' }}>
+          <Link to="/" className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '14px' }}>
+            返回主页
+          </Link>
+          <Link to="/register" className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '14px' }}>
+            去注册
+          </Link>
+        </div>
         </Card>
       </div>
     </div>
