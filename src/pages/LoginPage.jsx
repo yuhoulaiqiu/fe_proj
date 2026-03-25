@@ -66,24 +66,22 @@ function LoginPage() {
         </div>
 
         <Card as="form" className="form" onSubmit={onSubmit} style={{ maxWidth: '100%' }}>
-          <div className="btn-group" style={{ justifyContent: 'center' }}>
+          <div className="segmented" aria-label="登录注册切换">
             <button
               type="button"
-              className={`btn ${mode === 'login' ? '' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px' }}
+              className={`segmented-btn ${mode === 'login' ? 'active' : ''}`}
               onClick={() => setMode('login')}
               disabled={submitting}
             >
-              登录
+              账号登录
             </button>
             <button
               type="button"
-              className={`btn ${mode === 'register' ? '' : 'btn-secondary'}`}
-              style={{ padding: '8px 14px' }}
+              className={`segmented-btn ${mode === 'register' ? 'active' : ''}`}
               onClick={() => setMode('register')}
               disabled={submitting}
             >
-              注册
+              账号注册
             </button>
           </div>
 
