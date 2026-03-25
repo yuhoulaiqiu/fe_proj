@@ -289,6 +289,45 @@ func TestRegisterActivityCreatesReminders(t *testing.T) {
 	}
 }
 
+func TestCancelActivityRegistration(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	token := "t"
+	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
+		WithArgs(token).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(1), expiresAt))
+
+	startAt := time.Now().Add(48 * time.Hour).UTC()
+	endAt := startAt.Add(2 * time.Hour)
+	mock.ExpectQuery("SELECT status, start_time, end_time FROM activities WHERE id = \\? AND deleted_at IS NULL").
+		WithArgs(int64(5)).
+		WillReturnRows(sqlmock.NewRows([]string{"status", "start_time", "end_time"}).
+			AddRow("active", startAt.Format(time.RFC3339), endAt.Format(time.RFC3339)))
+
+	mock.ExpectExec("UPDATE activity_registrations SET status = 'cancelled' WHERE activity_id = \\? AND user_id = \\? AND status <> 'cancelled'").
+		WithArgs(int64(5), int64(1)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	r := newTestRouter(t, db)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/activities/5/register", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAdminCreateLostItem(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

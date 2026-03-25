@@ -25,6 +25,11 @@ export async function apiRegisterActivity(id) {
   return data
 }
 
+export async function apiCancelActivityRegistration(id) {
+  const { data } = await http.delete(`/api/activities/${id}/register`)
+  return data
+}
+
 export async function apiGetUserRegisteredActivities() {
   const { data } = await http.get('/api/user/activities/registered')
   return data

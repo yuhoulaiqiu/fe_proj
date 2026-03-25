@@ -336,6 +336,35 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 			c.JSON(http.StatusOK, map[string]any{"ok": true})
 		})
 
+		user.DELETE("/activities/:id/register", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			if err := cancelActivityRegistration(db, activityID, userID); err != nil {
+				switch {
+				case errors.Is(err, errActivityNotFound):
+					writeError(c, http.StatusNotFound, "not_found")
+					return
+				case errors.Is(err, errNotRegistered):
+					writeError(c, http.StatusNotFound, "not_registered")
+					return
+				case errors.Is(err, errCancellationClosed):
+					writeError(c, http.StatusConflict, "cancellation_closed")
+					return
+				case errors.Is(err, errActivityTimeInvalid):
+					writeError(c, http.StatusBadRequest, "activity_time_invalid")
+					return
+				default:
+					writeError(c, http.StatusInternalServerError, "server_error")
+					return
+				}
+			}
+			c.JSON(http.StatusOK, map[string]any{"ok": true})
+		})
+
 		user.GET("/user/activities/registered", func(c *gin.Context) {
 			userID := c.MustGet("user_id").(int64)
 			items, err := listUserRegisteredActivities(db, userID)

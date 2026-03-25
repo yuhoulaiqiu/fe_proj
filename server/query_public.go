@@ -12,7 +12,9 @@ import (
 var (
 	errActivityNotFound    = errors.New("activity_not_found")
 	errRegistrationClosed  = errors.New("registration_closed")
+	errCancellationClosed  = errors.New("cancellation_closed")
 	errAlreadyRegistered   = errors.New("already_registered")
+	errNotRegistered       = errors.New("not_registered")
 	errActivityTimeInvalid = errors.New("activity_time_invalid")
 	errForbidden           = errors.New("forbidden")
 )
@@ -196,6 +198,25 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 	if err != nil {
 		var me *mysql.MySQLError
 		if errors.As(err, &me) && me.Number == 1062 {
+			var existing string
+			if qErr := db.QueryRow(
+				"SELECT status FROM activity_registrations WHERE activity_id = ? AND user_id = ?",
+				activityID, userID,
+			).Scan(&existing); qErr != nil {
+				return errAlreadyRegistered
+			}
+			if existing == "cancelled" {
+				if _, uErr := db.Exec(
+					"UPDATE activity_registrations SET status = 'pending', created_at = ? WHERE activity_id = ? AND user_id = ?",
+					createdAt, activityID, userID,
+				); uErr != nil {
+					return uErr
+				}
+				if startAt, ok := parseFlexibleTime(startTime); ok {
+					_ = upsertActivityStartReminders(db, activityID, userID, title, startAt)
+				}
+				return nil
+			}
 			return errAlreadyRegistered
 		}
 		return err
@@ -206,11 +227,58 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 	return nil
 }
 
+func cancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
+	now := time.Now()
+	var status, startTime, endTime string
+	err := db.QueryRow(
+		"SELECT status, start_time, end_time FROM activities WHERE id = ? AND deleted_at IS NULL",
+		activityID,
+	).Scan(&status, &startTime, &endTime)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errActivityNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	next, deadline, okDeadline := deriveActivityStatus(now, status, startTime, endTime)
+	if shouldUpdateActivityStatus(status, next) && (next == "active" || next == "closed" || next == "finished") {
+		if _, err := db.Exec("UPDATE activities SET status = ? WHERE id = ? AND status <> 'cancelled'", next, activityID); err != nil {
+			return err
+		}
+	}
+	if next != "active" {
+		return errCancellationClosed
+	}
+	if !okDeadline {
+		return errActivityTimeInvalid
+	}
+	if now.Equal(deadline) || now.After(deadline) {
+		return errCancellationClosed
+	}
+
+	res, err := db.Exec(
+		"UPDATE activity_registrations SET status = 'cancelled' WHERE activity_id = ? AND user_id = ? AND status <> 'cancelled'",
+		activityID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return errNotRegistered
+	}
+	return nil
+}
+
 func listUserRegisteredActivities(db *sql.DB, userID int64) ([]Activity, error) {
 	q := `SELECT a.id, a.title, a.category, a.status, a.user_id, a.cover_url, a.summary, a.content, a.location, a.start_time, a.end_time, a.created_at 
 		  FROM activities a 
 		  JOIN activity_registrations r ON a.id = r.activity_id 
-		  WHERE r.user_id = ? AND a.deleted_at IS NULL ORDER BY r.created_at DESC`
+		  WHERE r.user_id = ? AND r.status <> 'cancelled' AND a.deleted_at IS NULL ORDER BY r.created_at DESC`
 	rows, err := db.Query(q, userID)
 	if err != nil {
 		return nil, err

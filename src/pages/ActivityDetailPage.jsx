@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast.jsx'
 import {
   apiGetActivity,
   apiGetUserRegisteredActivities,
+  apiCancelActivityRegistration,
   apiRegisterActivity,
 } from '../services/publicApi.js'
 import { copyText } from '../utils/copyText.js'
@@ -96,6 +97,23 @@ function ActivityDetailPage() {
       addToast('报名成功！', 'success')
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || '报名失败，请稍后重试'
+      addToast(msg, 'danger')
+    }
+  }
+
+  const onCancelRegistration = async () => {
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
+    if (!token) {
+      addToast('请先登录后再操作', 'warning')
+      navigate('/login')
+      return
+    }
+    try {
+      await apiCancelActivityRegistration(id)
+      setIsRegistered(false)
+      addToast('已取消报名', 'success')
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || '取消失败，请稍后重试'
       addToast(msg, 'danger')
     }
   }
@@ -193,6 +211,16 @@ function ActivityDetailPage() {
                           ? '报名已截止'
                           : '不可报名'}
                   </button>
+                  {isRegistered ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      disabled={data.status !== 'active'}
+                      onClick={onCancelRegistration}
+                    >
+                      取消报名
+                    </button>
+                  ) : null}
                   {ownerId && String(ownerId) === String(data.userId) ? (
                     <div className="actions" style={{ justifyContent: 'flex-end' }}>
                       <Link className="btn btn-secondary" to={`/activities/${id}/edit`}>
