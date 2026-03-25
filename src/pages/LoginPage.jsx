@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Alert from '../components/ui/Alert.jsx'
 import Card from '../components/ui/Card.jsx'
@@ -15,11 +15,18 @@ function LoginPage() {
     return '/'
   }, [location.state])
 
-  const [mode, setMode] = useState('login')
+  const initialMode = useMemo(() => {
+    return location.state?.mode === 'register' ? 'register' : 'login'
+  }, [location.state])
+  const [mode, setMode] = useState(initialMode)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (location.state?.mode === 'register') setMode('register')
+  }, [location.state])
 
   async function onSubmit(e) {
     e.preventDefault()

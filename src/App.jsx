@@ -6,6 +6,7 @@ import RequireAdmin from './components/RequireAdmin.jsx'
 import SiteLayout from './components/SiteLayout.jsx'
 import ToastProvider from './components/ui/Toast.jsx'
 import ActivitiesPage from './pages/ActivitiesPage.jsx'
+import ActivityCreatePage from './pages/ActivityCreatePage.jsx'
 import ActivityDetailPage from './pages/ActivityDetailPage.jsx'
 import AdminLostItemFormPage from './pages/admin/AdminLostItemFormPage.jsx'
 import AdminLostItemsPage from './pages/admin/AdminLostItemsPage.jsx'
@@ -23,7 +24,10 @@ function App() {
     <ToastProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/register"
+          element={<Navigate to="/login" replace state={{ mode: 'register' }} />}
+        />
         <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
         <Route
@@ -35,6 +39,7 @@ function App() {
         >
           <Route index element={<HomePage />} />
           <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/activities/new" element={<ActivityCreatePage />} />
           <Route path="/activities/:id" element={<ActivityDetailPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/services/:id" element={<ServiceDetailPage />} />

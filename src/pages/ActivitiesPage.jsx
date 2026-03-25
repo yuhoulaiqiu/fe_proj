@@ -85,10 +85,17 @@ function ActivitiesPage() {
   return (
     <div className="stack">
       <div className="page-header">
-        <h1 className="page-title">公益活动</h1>
-        <p className="muted">
-          浏览社区公益活动与参与信息{total ? `（共 ${total} 条）` : ''}。
-        </p>
+        <div className="row-between">
+          <div>
+            <h1 className="page-title">公益活动</h1>
+            <p className="muted">
+              浏览社区公益活动与参与信息{total ? `（共 ${total} 条）` : ''}。
+            </p>
+          </div>
+          <Link className="btn" to="/activities/new">
+            发布活动
+          </Link>
+        </div>
       </div>
 
       <Card as="form" onSubmit={onSearch}>

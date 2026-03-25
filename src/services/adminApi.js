@@ -1,10 +1,5 @@
 import { http } from './http.js'
 
-export async function apiLogin({ username, password }) {
-  const { data } = await http.post('/api/auth/login', { username, password })
-  return data
-}
-
 export async function apiAdminListLostItems(params) {
   const { data } = await http.get('/api/admin/lost-items', { params })
   return data

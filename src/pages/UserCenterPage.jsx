@@ -5,7 +5,10 @@ import Badge from '../components/ui/Badge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { useToast } from '../components/ui/Toast.jsx'
-import { apiGetUserRegisteredActivities } from '../services/publicApi.js'
+import {
+  apiGetUserPublishedActivities,
+  apiGetUserRegisteredActivities,
+} from '../services/publicApi.js'
 import { apiMe } from '../services/authApi.js'
 
 function UserCenterPage() {
@@ -19,6 +22,7 @@ function UserCenterPage() {
     }
   })
   const [registeredActivities, setRegisteredActivities] = useState([])
+  const [publishedActivities, setPublishedActivities] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -35,10 +39,14 @@ function UserCenterPage() {
         const nextUser = me?.user || {}
         localStorage.setItem('auth_user', JSON.stringify(nextUser))
         setUser(nextUser)
-        const items = await apiGetUserRegisteredActivities()
-        setRegisteredActivities(Array.isArray(items) ? items : [])
+        const [registered, published] = await Promise.all([
+          apiGetUserRegisteredActivities(),
+          apiGetUserPublishedActivities(),
+        ])
+        setRegisteredActivities(Array.isArray(registered) ? registered : [])
+        setPublishedActivities(Array.isArray(published) ? published : [])
       } catch (err) {
-        addToast('加载报名活动失败', 'danger')
+        addToast('加载个人活动失败', 'danger')
       } finally {
         setLoading(false)
       }
@@ -91,9 +99,14 @@ function UserCenterPage() {
             </button>
           ) : null}
           {localStorage.getItem('auth_token') || localStorage.getItem('admin_token') ? (
-            <button className="btn btn-outline" onClick={handleLogout}>
-              退出登录
-            </button>
+            <>
+              <button className="btn" onClick={() => navigate('/activities/new')}>
+                发布活动
+              </button>
+              <button className="btn btn-outline" onClick={handleLogout}>
+                退出登录
+              </button>
+            </>
           ) : (
             <>
               <button className="btn" onClick={() => navigate('/login')}>
@@ -149,6 +162,57 @@ function UserCenterPage() {
             </div>
           ) : (
             <EmptyState description="您还没有报名任何活动" />
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="row-between">
+          <h2 className="card-title">我发布的活动</h2>
+          <Link className="btn btn-secondary" to="/activities/new">
+            发布新活动
+          </Link>
+        </div>
+        <div className="mt-4">
+          {loading ? (
+            <LoadingCard title="正在加载我发布的活动..." lines={3} />
+          ) : publishedActivities.length > 0 ? (
+            <div className="stack" style={{ gap: '12px' }}>
+              {publishedActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="row-between"
+                  style={{
+                    padding: '12px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                      {activity.title}
+                    </h3>
+                    <div className="muted" style={{ fontSize: '14px', marginTop: '4px' }}>
+                      {activity.startTime} ~ {activity.endTime}
+                    </div>
+                  </div>
+                  <div className="row" style={{ gap: '12px' }}>
+                    <Badge variant={activity.status === 'active' ? 'success' : 'warning'}>
+                      {activity.status === 'active' ? '报名中' : '已结束'}
+                    </Badge>
+                    <Link
+                      to={`/activities/${activity.id}`}
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 12px', fontSize: '14px' }}
+                    >
+                      查看详情
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState description="您还没有发布任何活动" />
           )}
         </div>
       </Card>
