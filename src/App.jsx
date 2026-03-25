@@ -12,6 +12,8 @@ import ActivityEditPage from './pages/ActivityEditPage.jsx'
 import ActivityRegistrationsPage from './pages/ActivityRegistrationsPage.jsx'
 import AdminLostItemFormPage from './pages/admin/AdminLostItemFormPage.jsx'
 import AdminLostItemsPage from './pages/admin/AdminLostItemsPage.jsx'
+import AdminServiceFormPage from './pages/admin/AdminServiceFormPage.jsx'
+import AdminServicesPage from './pages/admin/AdminServicesPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import LostFoundPage from './pages/LostFoundPage.jsx'
@@ -60,7 +62,10 @@ function App() {
             </RequireAdmin>
           }
         >
-          <Route index element={<Navigate to="/admin/lost-items" replace />} />
+          <Route index element={<Navigate to="/admin/services" replace />} />
+          <Route path="services" element={<AdminServicesPage />} />
+          <Route path="services/new" element={<AdminServiceFormPage />} />
+          <Route path="services/:id/edit" element={<AdminServiceFormPage />} />
           <Route path="lost-items" element={<AdminLostItemsPage />} />
           <Route path="lost-items/new" element={<AdminLostItemFormPage />} />
           <Route path="lost-items/:id/edit" element={<AdminLostItemFormPage />} />

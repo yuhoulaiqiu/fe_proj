@@ -578,6 +578,32 @@ func getService(db *sql.DB, id int64) (Service, error) {
 	return it, err
 }
 
+func createService(db *sql.DB, it Service) (int64, error) {
+	now := time.Now().Format(time.RFC3339)
+	res, err := db.Exec(
+		"INSERT INTO services (name, category, phone, address, description, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		it.Name, it.Category, it.Phone, it.Address, it.Description, now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func updateService(db *sql.DB, id int64, it Service) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := db.Exec(
+		"UPDATE services SET name = ?, category = ?, phone = ?, address = ?, description = ?, updated_at = ? WHERE id = ?",
+		it.Name, it.Category, it.Phone, it.Address, it.Description, now, id,
+	)
+	return err
+}
+
+func deleteService(db *sql.DB, id int64) error {
+	_, err := db.Exec("DELETE FROM services WHERE id = ?", id)
+	return err
+}
+
 func listLostItems(db *sql.DB, itemType, status, keyword string, page, pageSize int, includeDeleted bool) ([]LostItem, int64, error) {
 	clauses := []string{}
 	args := []any{}

@@ -379,3 +379,52 @@ func TestAdminCreateLostItem(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAdminCreateService(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	token := "t"
+	expiresAt := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
+		WithArgs(token).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(1), expiresAt))
+
+	mock.ExpectQuery("SELECT username, role FROM users WHERE id = \\?").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"username", "role"}).AddRow("admin", "admin"))
+
+	mock.ExpectExec("INSERT INTO services \\(name, category, phone, address, description, updated_at\\) VALUES \\(\\?, \\?, \\?, \\?, \\?, \\?\\)").
+		WithArgs("社区水电维修", "repair", "400", "A区", "desc", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(7, 1))
+
+	mock.ExpectQuery("SELECT id, name, category, phone, address, description, updated_at FROM services WHERE id = \\?").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "category", "phone", "address", "description", "updated_at"}).
+			AddRow(int64(7), "社区水电维修", "repair", "400", "A区", "desc", "u"))
+
+	r := newTestRouter(t, db)
+	body, _ := json.Marshal(map[string]any{
+		"name":        "社区水电维修",
+		"category":    "repair",
+		"phone":       "400",
+		"address":     "A区",
+		"description": "desc",
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/services", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -15,6 +15,9 @@ function AdminLayout() {
       </header>
       <div className="admin-body container">
         <aside className="admin-sidebar">
+          <NavLink to="/admin/services" className="nav-link">
+            便民服务管理
+          </NavLink>
           <NavLink to="/admin/lost-items" className="nav-link">
             失物招领管理
           </NavLink>

@@ -469,6 +469,96 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 
 	admin := r.Group("/api/admin")
 	admin.Use(requireAdmin(db))
+	admin.GET("/services", func(c *gin.Context) {
+		category := strings.TrimSpace(c.Query("category"))
+		keyword := strings.TrimSpace(c.Query("keyword"))
+		page, pageSize := parsePage(c)
+		items, total, err := listServices(db, category, keyword, page, pageSize)
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		c.JSON(http.StatusOK, listResponse[Service]{Items: items, Total: total, Page: page, PageSize: pageSize})
+	})
+	admin.POST("/services", func(c *gin.Context) {
+		var it Service
+		if err := c.ShouldBindJSON(&it); err != nil {
+			writeError(c, http.StatusBadRequest, "invalid_json")
+			return
+		}
+		it.Name = strings.TrimSpace(it.Name)
+		if it.Name == "" {
+			writeError(c, http.StatusBadRequest, "missing_name")
+			return
+		}
+		id, err := createService(db, it)
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		created, err := getService(db, id)
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		c.JSON(http.StatusCreated, created)
+	})
+	admin.GET("/services/:id", func(c *gin.Context) {
+		id, ok := parseID(c.Param("id"))
+		if !ok {
+			writeError(c, http.StatusBadRequest, "invalid_id")
+			return
+		}
+		it, err := getService(db, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(c, http.StatusNotFound, "not_found")
+			return
+		}
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		c.JSON(http.StatusOK, it)
+	})
+	admin.PUT("/services/:id", func(c *gin.Context) {
+		id, ok := parseID(c.Param("id"))
+		if !ok {
+			writeError(c, http.StatusBadRequest, "invalid_id")
+			return
+		}
+		var it Service
+		if err := c.ShouldBindJSON(&it); err != nil {
+			writeError(c, http.StatusBadRequest, "invalid_json")
+			return
+		}
+		it.Name = strings.TrimSpace(it.Name)
+		if it.Name == "" {
+			writeError(c, http.StatusBadRequest, "missing_name")
+			return
+		}
+		if err := updateService(db, id, it); err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		updated, err := getService(db, id)
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		c.JSON(http.StatusOK, updated)
+	})
+	admin.DELETE("/services/:id", func(c *gin.Context) {
+		id, ok := parseID(c.Param("id"))
+		if !ok {
+			writeError(c, http.StatusBadRequest, "invalid_id")
+			return
+		}
+		if err := deleteService(db, id); err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		c.JSON(http.StatusOK, map[string]any{"ok": true})
+	})
 	admin.GET("/lost-items", func(c *gin.Context) {
 		itemType := strings.TrimSpace(c.Query("type"))
 		status := strings.TrimSpace(c.Query("status"))
