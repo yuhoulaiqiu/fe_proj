@@ -3,15 +3,28 @@ package main
 import (
 	"database/sql"
 	"strings"
+	"time"
 )
 
-func listActivities(db *sql.DB, keyword string, page, pageSize int) ([]Activity, int64, error) {
-	where := ""
+func listActivities(db *sql.DB, category, status, keyword string, page, pageSize int) ([]Activity, int64, error) {
+	clauses := []string{}
 	args := []any{}
+	if category != "" {
+		clauses = append(clauses, "category = ?")
+		args = append(args, category)
+	}
+	if status != "" {
+		clauses = append(clauses, "status = ?")
+		args = append(args, status)
+	}
 	if keyword != "" {
-		where = "WHERE title LIKE ? OR summary LIKE ?"
+		clauses = append(clauses, "(title LIKE ? OR summary LIKE ?)")
 		kw := "%" + keyword + "%"
 		args = append(args, kw, kw)
+	}
+	where := ""
+	if len(clauses) > 0 {
+		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
 	var total int64
 	qCount := "SELECT COUNT(1) FROM activities " + where
@@ -19,7 +32,7 @@ func listActivities(db *sql.DB, keyword string, page, pageSize int) ([]Activity,
 		return nil, 0, err
 	}
 	offset := (page - 1) * pageSize
-	q := "SELECT id, title, cover_url, summary, content, location, start_time, end_time, created_at FROM activities " + where + " ORDER BY id DESC LIMIT ? OFFSET ?"
+	q := "SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities " + where + " ORDER BY id DESC LIMIT ? OFFSET ?"
 	args = append(args, pageSize, offset)
 	rows, err := db.Query(q, args...)
 	if err != nil {
@@ -29,7 +42,7 @@ func listActivities(db *sql.DB, keyword string, page, pageSize int) ([]Activity,
 	out := []Activity{}
 	for rows.Next() {
 		var it Activity
-		if err := rows.Scan(&it.ID, &it.Title, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
+		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, it)
@@ -40,10 +53,70 @@ func listActivities(db *sql.DB, keyword string, page, pageSize int) ([]Activity,
 func getActivity(db *sql.DB, id int64) (Activity, error) {
 	var it Activity
 	err := db.QueryRow(
-		"SELECT id, title, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE id = ?",
+		"SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE id = ?",
 		id,
-	).Scan(&it.ID, &it.Title, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt)
+	).Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt)
 	return it, err
+}
+
+func registerActivity(db *sql.DB, activityID, userID int64) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := db.Exec(
+		"INSERT INTO activity_registrations (activity_id, user_id, status, created_at) VALUES (?, ?, 'pending', ?)",
+		activityID, userID, now,
+	)
+	return err
+}
+
+func listUserRegisteredActivities(db *sql.DB, userID int64) ([]Activity, error) {
+	q := `SELECT a.id, a.title, a.category, a.status, a.user_id, a.cover_url, a.summary, a.content, a.location, a.start_time, a.end_time, a.created_at 
+		  FROM activities a 
+		  JOIN activity_registrations r ON a.id = r.activity_id 
+		  WHERE r.user_id = ? ORDER BY r.created_at DESC`
+	rows, err := db.Query(q, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Activity{}
+	for rows.Next() {
+		var it Activity
+		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, nil
+}
+
+func listUserPublishedActivities(db *sql.DB, userID int64) ([]Activity, error) {
+	q := "SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE user_id = ? ORDER BY created_at DESC"
+	rows, err := db.Query(q, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Activity{}
+	for rows.Next() {
+		var it Activity
+		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, nil
+}
+
+func createActivity(db *sql.DB, it Activity) (int64, error) {
+	now := time.Now().Format(time.RFC3339)
+	res, err := db.Exec(
+		"INSERT INTO activities (title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		it.Title, it.Category, it.Status, it.UserID, it.CoverURL, it.Summary, it.Content, it.Location, it.StartTime, it.EndTime, now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
 }
 
 func listServices(db *sql.DB, category, keyword string, page, pageSize int) ([]Service, int64, error) {

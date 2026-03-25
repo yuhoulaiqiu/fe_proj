@@ -3,6 +3,9 @@ package main
 type Activity struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
+	Category  string `json:"category"`
+	Status    string `json:"status"`
+	UserID    int64  `json:"userId"`
 	CoverURL  string `json:"coverUrl,omitempty"`
 	Summary   string `json:"summary,omitempty"`
 	Content   string `json:"content,omitempty"`
@@ -10,6 +13,14 @@ type Activity struct {
 	StartTime string `json:"startTime,omitempty"`
 	EndTime   string `json:"endTime,omitempty"`
 	CreatedAt string `json:"createdAt,omitempty"`
+}
+
+type ActivityRegistration struct {
+	ID         int64  `json:"id"`
+	ActivityID int64  `json:"activityId"`
+	UserID     int64  `json:"userId"`
+	Status     string `json:"status"`
+	CreatedAt  string `json:"createdAt"`
 }
 
 type Service struct {

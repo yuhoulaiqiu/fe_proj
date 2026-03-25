@@ -50,9 +50,11 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 	})
 
 	r.GET("/api/activities", func(c *gin.Context) {
+		category := strings.TrimSpace(c.Query("category"))
+		status := strings.TrimSpace(c.Query("status"))
 		keyword := strings.TrimSpace(c.Query("keyword"))
 		page, pageSize := parsePage(c)
-		items, total, err := listActivities(db, keyword, page, pageSize)
+		items, total, err := listActivities(db, category, status, keyword, page, pageSize)
 		if err != nil {
 			writeError(c, http.StatusInternalServerError, "server_error")
 			return
@@ -77,6 +79,64 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 		}
 		c.JSON(http.StatusOK, it)
 	})
+
+	user := r.Group("/api")
+	user.Use(requireAuth(db))
+	{
+		user.POST("/activities/:id/register", func(c *gin.Context) {
+			activityID, ok := parseID(c.Param("id"))
+			if !ok {
+				writeError(c, http.StatusBadRequest, "invalid_id")
+				return
+			}
+			userID := c.MustGet("user_id").(int64)
+			if err := registerActivity(db, activityID, userID); err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, map[string]any{"ok": true})
+		})
+
+		user.GET("/user/activities/registered", func(c *gin.Context) {
+			userID := c.MustGet("user_id").(int64)
+			items, err := listUserRegisteredActivities(db, userID)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, items)
+		})
+
+		user.GET("/user/activities/published", func(c *gin.Context) {
+			userID := c.MustGet("user_id").(int64)
+			items, err := listUserPublishedActivities(db, userID)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusOK, items)
+		})
+
+		user.POST("/activities", func(c *gin.Context) {
+			var it Activity
+			if err := c.ShouldBindJSON(&it); err != nil {
+				writeError(c, http.StatusBadRequest, "invalid_json")
+				return
+			}
+			it.UserID = c.MustGet("user_id").(int64)
+			id, err := createActivity(db, it)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			created, err := getActivity(db, id)
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			c.JSON(http.StatusCreated, created)
+		})
+	}
 
 	r.GET("/api/services", func(c *gin.Context) {
 		category := strings.TrimSpace(c.Query("category"))
@@ -253,6 +313,25 @@ func withCORS(allowed []string) gin.HandlerFunc {
 			return
 		}
 
+		c.Next()
+	}
+}
+
+func requireAuth(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token, ok := bearerToken(c.GetHeader("Authorization"))
+		if !ok {
+			writeError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		userID, err := validateSession(db, token)
+		if err != nil {
+			writeError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		c.Set("user_id", userID)
 		c.Next()
 	}
 }
