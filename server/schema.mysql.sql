@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS activities (
   id BIGINT NOT NULL AUTO_INCREMENT,
   title VARCHAR(255) NOT NULL,
+  category VARCHAR(64) NOT NULL DEFAULT '其他',
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  user_id BIGINT NOT NULL DEFAULT 0,
   cover_url TEXT NOT NULL,
   summary TEXT NOT NULL,
   content MEDIUMTEXT NOT NULL,
@@ -32,7 +35,19 @@ CREATE TABLE IF NOT EXISTS activities (
   start_time VARCHAR(64) NOT NULL,
   end_time VARCHAR(64) NOT NULL,
   created_at VARCHAR(64) NOT NULL,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY idx_activities_category_status (category, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS activity_registrations (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  activity_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'pending',
+  created_at VARCHAR(64) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_activity_user (activity_id, user_id),
+  KEY idx_registrations_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS services (
