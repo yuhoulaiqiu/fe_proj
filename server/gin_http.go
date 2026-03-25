@@ -49,6 +49,67 @@ func registerRoutes(r *gin.Engine, db *sql.DB) {
 		c.JSON(http.StatusOK, res)
 	})
 
+	r.POST("/api/auth/register", func(c *gin.Context) {
+		var req loginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			writeError(c, http.StatusBadRequest, "invalid_json")
+			return
+		}
+		req.Username = strings.TrimSpace(req.Username)
+		if req.Username == "" || req.Password == "" {
+			writeError(c, http.StatusBadRequest, "missing_credentials")
+			return
+		}
+		if len(req.Password) < 6 {
+			writeError(c, http.StatusBadRequest, "weak_password")
+			return
+		}
+
+		userID, err := createUser(db, req.Username, req.Password, "user")
+		if err != nil {
+			if isDuplicateUsername(err) {
+				writeError(c, http.StatusConflict, "username_taken")
+				return
+			}
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		token, expiresAt, err := createSession(db, userID)
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "server_error")
+			return
+		}
+		var res loginResponse
+		res.Token = token
+		res.ExpiresAt = expiresAt.Format(time.RFC3339)
+		res.User.ID = userID
+		res.User.Username = req.Username
+		res.User.Role = "user"
+		c.JSON(http.StatusCreated, res)
+	})
+
+	auth := r.Group("/api/auth")
+	auth.Use(requireAuth(db))
+	{
+		auth.GET("/me", func(c *gin.Context) {
+			userID := c.MustGet("user_id").(int64)
+			username, role, err := getUserProfile(db, userID)
+			if errors.Is(err, sql.ErrNoRows) {
+				writeError(c, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+			if err != nil {
+				writeError(c, http.StatusInternalServerError, "server_error")
+				return
+			}
+			var res meResponse
+			res.User.ID = userID
+			res.User.Username = username
+			res.User.Role = role
+			c.JSON(http.StatusOK, res)
+		})
+	}
+
 	r.GET("/api/activities", func(c *gin.Context) {
 		category := strings.TrimSpace(c.Query("category"))
 		status := strings.TrimSpace(c.Query("status"))
@@ -344,8 +405,20 @@ func requireAdmin(db *sql.DB) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		if _, err := validateSession(db, token); err != nil {
+		userID, err := validateSession(db, token)
+		if err != nil {
 			writeError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		_, role, err := getUserProfile(db, userID)
+		if err != nil {
+			writeError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+		if role != "admin" {
+			writeError(c, http.StatusForbidden, "forbidden")
 			c.Abort()
 			return
 		}

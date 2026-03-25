@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -49,6 +50,40 @@ func verifyUser(db *sql.DB, username, password string) (int64, string, error) {
 		return 0, "", err
 	}
 	return id, role, nil
+}
+
+func createUser(db *sql.DB, username, password, role string) (int64, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return 0, err
+	}
+	now := time.Now().Format(time.RFC3339)
+	res, err := db.Exec(
+		"INSERT INTO users (username, password_hash, role, created_at) VALUES (?,?,?,?)",
+		username,
+		string(hash),
+		role,
+		now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	return id, err
+}
+
+func isDuplicateUsername(err error) bool {
+	var me *mysql.MySQLError
+	if errors.As(err, &me) {
+		return me.Number == 1062
+	}
+	return false
+}
+
+func getUserProfile(db *sql.DB, userID int64) (string, string, error) {
+	var username, role string
+	err := db.QueryRow("SELECT username, role FROM users WHERE id = ?", userID).Scan(&username, &role)
+	return username, role, err
 }
 
 func createSession(db *sql.DB, userID int64) (string, time.Time, error) {

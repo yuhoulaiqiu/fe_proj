@@ -78,6 +78,12 @@ function SiteLayout() {
             >
               个人中心
             </NavLink>
+            <NavLink to="/login" className="nav-link" onClick={closeMenu}>
+              登录
+            </NavLink>
+            <NavLink to="/register" className="nav-link" onClick={closeMenu}>
+              注册
+            </NavLink>
           </nav>
         </div>
       </header>

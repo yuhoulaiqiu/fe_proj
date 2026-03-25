@@ -24,7 +24,7 @@ function ActivityDetailPage() {
   useEffect(() => {
     let cancelled = false
     async function run() {
-      const token = localStorage.getItem('admin_token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
       if (!token) {
         setIsRegistered(false)
         return
@@ -76,10 +76,10 @@ function ActivityDetailPage() {
   }
 
   const onRegister = async () => {
-    const token = localStorage.getItem('admin_token')
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
     if (!token) {
       addToast('请先登录后再报名', 'warning')
-      navigate('/admin/login')
+      navigate('/login')
       return
     }
 

@@ -2,9 +2,16 @@ import { Navigate, useLocation } from 'react-router-dom'
 
 function RequireAdmin({ children }) {
   const location = useLocation()
-  const token = localStorage.getItem('admin_token')
+  const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('auth_user') || '{}')
+    } catch {
+      return {}
+    }
+  })()
 
-  if (!token) {
+  if (!token || user?.role !== 'admin') {
     return <Navigate to="/admin/login" replace state={{ from: location }} />
   }
 

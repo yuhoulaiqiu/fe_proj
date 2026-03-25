@@ -10,9 +10,11 @@ import AdminLoginPage from './pages/admin/AdminLoginPage.jsx'
 import AdminLostItemFormPage from './pages/admin/AdminLostItemFormPage.jsx'
 import AdminLostItemsPage from './pages/admin/AdminLostItemsPage.jsx'
 import HomePage from './pages/HomePage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
 import LostFoundPage from './pages/LostFoundPage.jsx'
 import LostItemDetailPage from './pages/LostItemDetailPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
 import ServicesPage from './pages/ServicesPage.jsx'
 import ServiceDetailPage from './pages/ServiceDetailPage.jsx'
 import UserCenterPage from './pages/UserCenterPage.jsx'
@@ -29,6 +31,8 @@ function App() {
           <Route path="/services/:id" element={<ServiceDetailPage />} />
           <Route path="/lost-found" element={<LostFoundPage />} />
           <Route path="/lost-found/:id" element={<LostItemDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/user-center" element={<UserCenterPage />} />
         </Route>
 

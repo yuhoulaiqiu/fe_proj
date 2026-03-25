@@ -25,6 +25,8 @@ function AdminLoginPage() {
     setSubmitting(true)
     try {
       const res = await apiLogin({ username, password })
+      localStorage.setItem('auth_token', res.token)
+      localStorage.setItem('auth_user', JSON.stringify(res.user || {}))
       localStorage.setItem('admin_token', res.token)
       addToast('登录成功', 'success')
       navigate(redirectTo, { replace: true })

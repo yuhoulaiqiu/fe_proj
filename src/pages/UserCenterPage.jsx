@@ -6,16 +6,24 @@ import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { useToast } from '../components/ui/Toast.jsx'
 import { apiGetUserRegisteredActivities } from '../services/publicApi.js'
+import { apiMe } from '../services/authApi.js'
 
 function UserCenterPage() {
   const navigate = useNavigate()
   const { addToast } = useToast()
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('auth_user') || '{}')
+    } catch {
+      return {}
+    }
+  })
   const [registeredActivities, setRegisteredActivities] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     async function fetchRegisteredActivities() {
-      const token = localStorage.getItem('admin_token')
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
       if (!token) {
         setRegisteredActivities([])
         return
@@ -23,6 +31,10 @@ function UserCenterPage() {
 
       setLoading(true)
       try {
+        const me = await apiMe()
+        const nextUser = me?.user || {}
+        localStorage.setItem('auth_user', JSON.stringify(nextUser))
+        setUser(nextUser)
         const items = await apiGetUserRegisteredActivities()
         setRegisteredActivities(Array.isArray(items) ? items : [])
       } catch (err) {
@@ -36,6 +48,8 @@ function UserCenterPage() {
   }, [addToast])
 
   const handleLogout = () => {
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
     localStorage.removeItem('admin_token')
     addToast('已退出登录', 'success')
     navigate('/', { replace: true })
@@ -56,25 +70,40 @@ function UserCenterPage() {
         <div className="user-info">
           <div className="info-item">
             <span className="label">用户名：</span>
-            <span className="value">管理员 (Admin)</span>
+            <span className="value">{user?.username || '-'}</span>
           </div>
           <div className="info-item">
             <span className="label">角色：</span>
-            <span className="value">超级管理员</span>
+            <span className="value">{user?.role || '-'}</span>
           </div>
           <div className="info-item">
             <span className="label">状态：</span>
-            <span className="value text-success">已登录</span>
+            <span className="value text-success">
+              {localStorage.getItem('auth_token') || localStorage.getItem('admin_token') ? '已登录' : '未登录'}
+            </span>
           </div>
         </div>
 
         <div className="actions mt-6" style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn" onClick={handleToAdmin}>
-            进入管理后台
-          </button>
-          <button className="btn btn-outline" onClick={handleLogout}>
-            退出登录
-          </button>
+          {user?.role === 'admin' ? (
+            <button className="btn" onClick={handleToAdmin}>
+              进入管理后台
+            </button>
+          ) : null}
+          {localStorage.getItem('auth_token') || localStorage.getItem('admin_token') ? (
+            <button className="btn btn-outline" onClick={handleLogout}>
+              退出登录
+            </button>
+          ) : (
+            <>
+              <button className="btn" onClick={() => navigate('/login')}>
+                去登录
+              </button>
+              <button className="btn btn-outline" onClick={() => navigate('/register')}>
+                去注册
+              </button>
+            </>
+          )}
         </div>
       </Card>
 

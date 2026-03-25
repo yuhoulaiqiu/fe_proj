@@ -88,8 +88,8 @@ func TestListActivitiesEmpty(t *testing.T) {
 	mock.ExpectQuery("SELECT COUNT\\(1\\) FROM activities").
 		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(int64(0)))
 
-	mock.ExpectQuery("SELECT id, title, cover_url, summary, content, location, start_time, end_time, created_at FROM activities").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "cover_url", "summary", "content", "location", "start_time", "end_time", "created_at"}))
+	mock.ExpectQuery("SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "category", "status", "user_id", "cover_url", "summary", "content", "location", "start_time", "end_time", "created_at"}))
 
 	r := newTestRouter(t, db)
 	w := httptest.NewRecorder()
@@ -130,6 +130,10 @@ func TestAdminCreateLostItem(t *testing.T) {
 	mock.ExpectQuery("SELECT user_id, expires_at FROM sessions WHERE token = \\?").
 		WithArgs(token).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "expires_at"}).AddRow(int64(1), expiresAt))
+
+	mock.ExpectQuery("SELECT username, role FROM users WHERE id = \\?").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"username", "role"}).AddRow("admin", "admin"))
 
 	mock.ExpectExec("INSERT INTO lost_items").
 		WithArgs("标题", "lost", "open", "地点", "时间", "描述", "联系方式", sqlmock.AnyArg(), sqlmock.AnyArg()).
