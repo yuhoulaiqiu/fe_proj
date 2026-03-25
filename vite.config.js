@@ -17,4 +17,14 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
+    proxy: {
+      '/api': {
+        target: 'http://114.117.200.17:8080',
+        changeOrigin: true,
+      },
+    },
+  },
 })
