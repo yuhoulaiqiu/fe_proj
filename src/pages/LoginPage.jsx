@@ -107,9 +107,11 @@ function LoginPage() {
 
           {error ? <Alert variant="danger">{error}</Alert> : null}
 
-          <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? (mode === 'register' ? '注册中…' : '登录中…') : mode === 'register' ? '注册' : '登录'}
-          </button>
+          <div className="row-center">
+            <button className="btn" type="submit" disabled={submitting}>
+              {submitting ? (mode === 'register' ? '注册中…' : '登录中…') : mode === 'register' ? '注册' : '登录'}
+            </button>
+          </div>
         </Card>
       </div>
     </div>

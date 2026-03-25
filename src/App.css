@@ -569,7 +569,7 @@
 }
 
 .segmented {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -578,6 +578,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--bg) 92%, var(--code-bg));
   margin-inline: auto;
+  width: fit-content;
 }
 
 .segmented-btn {
