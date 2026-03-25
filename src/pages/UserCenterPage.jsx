@@ -5,7 +5,7 @@ import Badge from '../components/ui/Badge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { useToast } from '../components/ui/Toast.jsx'
-import { apiGetActivity } from '../services/publicApi.js'
+import { apiGetUserRegisteredActivities } from '../services/publicApi.js'
 
 function UserCenterPage() {
   const navigate = useNavigate()
@@ -15,19 +15,17 @@ function UserCenterPage() {
 
   useEffect(() => {
     async function fetchRegisteredActivities() {
-      const ids = JSON.parse(localStorage.getItem('registered_activities') || '[]')
-      if (ids.length === 0) {
+      const token = localStorage.getItem('admin_token')
+      if (!token) {
         setRegisteredActivities([])
         return
       }
 
       setLoading(true)
       try {
-        const promises = ids.map((id) => apiGetActivity(id))
-        const results = await Promise.all(promises)
-        setRegisteredActivities(results)
+        const items = await apiGetUserRegisteredActivities()
+        setRegisteredActivities(Array.isArray(items) ? items : [])
       } catch (err) {
-        console.error('Failed to fetch registered activities:', err)
         addToast('加载报名活动失败', 'danger')
       } finally {
         setLoading(false)

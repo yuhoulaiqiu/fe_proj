@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Alert from '../components/ui/Alert.jsx'
 import Badge from '../components/ui/Badge.jsx'
 import Card from '../components/ui/Card.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import LoadingCard from '../components/ui/LoadingCard.jsx'
 import { useToast } from '../components/ui/Toast.jsx'
-import { apiGetActivity } from '../services/publicApi.js'
+import {
+  apiGetActivity,
+  apiGetUserRegisteredActivities,
+  apiRegisterActivity,
+} from '../services/publicApi.js'
 
 function ActivityDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -17,9 +22,27 @@ function ActivityDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false)
 
   useEffect(() => {
-    const registered = JSON.parse(localStorage.getItem('registered_activities') || '[]')
-    // 将 id 转为字符串进行比较，确保一致性
-    setIsRegistered(registered.includes(String(id)))
+    let cancelled = false
+    async function run() {
+      const token = localStorage.getItem('admin_token')
+      if (!token) {
+        setIsRegistered(false)
+        return
+      }
+      try {
+        const items = await apiGetUserRegisteredActivities()
+        if (cancelled) return
+        const registered =
+          Array.isArray(items) && items.some((it) => String(it.id) === String(id))
+        setIsRegistered(registered)
+      } catch (err) {
+        if (!cancelled) setIsRegistered(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   useEffect(() => {
@@ -52,14 +75,21 @@ function ActivityDetailPage() {
     })
   }
 
-  const onRegister = () => {
-    const registered = JSON.parse(localStorage.getItem('registered_activities') || '[]')
-    const stringId = String(id)
-    if (!registered.includes(stringId)) {
-      registered.push(stringId)
-      localStorage.setItem('registered_activities', JSON.stringify(registered))
+  const onRegister = async () => {
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
+      addToast('请先登录后再报名', 'warning')
+      navigate('/admin/login')
+      return
+    }
+
+    try {
+      await apiRegisterActivity(id)
       setIsRegistered(true)
       addToast('报名成功！', 'success')
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || '报名失败，请稍后重试'
+      addToast(msg, 'danger')
     }
   }
 

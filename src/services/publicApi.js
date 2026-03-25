@@ -20,6 +20,26 @@ export async function apiGetActivity(id) {
   return data
 }
 
+export async function apiRegisterActivity(id) {
+  const { data } = await http.post(`/api/activities/${id}/register`)
+  return data
+}
+
+export async function apiGetUserRegisteredActivities() {
+  const { data } = await http.get('/api/user/activities/registered')
+  return data
+}
+
+export async function apiGetUserPublishedActivities() {
+  const { data } = await http.get('/api/user/activities/published')
+  return data
+}
+
+export async function apiCreateActivity(payload) {
+  const { data } = await http.post('/api/activities', payload)
+  return data
+}
+
 export async function apiGetServices(params) {
   const { data } = await http.get('/api/services', { params })
   return normalizeList(data)
@@ -39,4 +59,3 @@ export async function apiGetLostItem(id) {
   const { data } = await http.get(`/api/lost-items/${id}`)
   return data
 }
-
