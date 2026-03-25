@@ -13,3 +13,15 @@ http.interceptors.request.use((config) => {
   }
   return config
 })
+
+http.interceptors.response.use(
+  (res) => {
+    const contentType = String(res.headers?.['content-type'] || '')
+    if (contentType.includes('text/html')) {
+      const url = String(res.config?.baseURL || '') + String(res.config?.url || '')
+      return Promise.reject(new Error(`API request returned HTML: ${url}`))
+    }
+    return res
+  },
+  (err) => Promise.reject(err),
+)
