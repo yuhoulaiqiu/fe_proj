@@ -1,13 +1,27 @@
-package main
+package db
 
 import (
 	"database/sql"
 	"errors"
+	"time"
 
-	"github.com/go-sql-driver/mysql"
+	mysql "github.com/go-sql-driver/mysql"
 )
 
-func migrate(db *sql.DB) error {
+func Open(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(30 * time.Minute)
+
+	return db, nil
+}
+
+func Migrate(db *sql.DB) error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id BIGINT NOT NULL AUTO_INCREMENT,

@@ -1,4 +1,4 @@
-package main
+package httpapi
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"community-help-hub-server/internal/domain"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -18,8 +20,8 @@ func newTestRouter(t *testing.T, db *sql.DB) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(withCORS(nil))
-	registerRoutes(r, db)
+	r.Use(WithCORS(nil))
+	RegisterRoutes(r, db)
 	return r
 }
 
@@ -144,10 +146,10 @@ func TestListActivitiesEmpty(t *testing.T) {
 	}
 
 	var res struct {
-		Items    []Activity `json:"items"`
-		Total    int64      `json:"total"`
-		Page     int        `json:"page"`
-		PageSize int        `json:"pageSize"`
+		Items    []domain.Activity `json:"items"`
+		Total    int64             `json:"total"`
+		Page     int               `json:"page"`
+		PageSize int               `json:"pageSize"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
 		t.Fatal(err)

@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"database/sql"
@@ -6,17 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
-)
+	"community-help-hub-server/internal/domain"
 
-var (
-	errActivityNotFound    = errors.New("activity_not_found")
-	errRegistrationClosed  = errors.New("registration_closed")
-	errCancellationClosed  = errors.New("cancellation_closed")
-	errAlreadyRegistered   = errors.New("already_registered")
-	errNotRegistered       = errors.New("not_registered")
-	errActivityTimeInvalid = errors.New("activity_time_invalid")
-	errForbidden           = errors.New("forbidden")
+	mysql "github.com/go-sql-driver/mysql"
 )
 
 func parseFlexibleTime(s string) (time.Time, bool) {
@@ -64,14 +56,14 @@ func shouldUpdateActivityStatus(oldStatus, newStatus string) bool {
 	return oldStatus != newStatus
 }
 
-func reconcileActivityStatusByID(db *sql.DB, id int64, now time.Time) (string, error) {
+func ReconcileActivityStatusByID(db *sql.DB, id int64, now time.Time) (string, error) {
 	var status, startTime, endTime string
 	err := db.QueryRow(
 		"SELECT status, start_time, end_time FROM activities WHERE id = ? AND deleted_at IS NULL",
 		id,
 	).Scan(&status, &startTime, &endTime)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", errActivityNotFound
+		return "", ErrActivityNotFound
 	}
 	if err != nil {
 		return "", err
@@ -85,7 +77,7 @@ func reconcileActivityStatusByID(db *sql.DB, id int64, now time.Time) (string, e
 	return next, nil
 }
 
-func reconcileActivities(db *sql.DB, now time.Time) error {
+func ReconcileActivities(db *sql.DB, now time.Time) error {
 	rows, err := db.Query("SELECT id, status, start_time, end_time FROM activities WHERE deleted_at IS NULL")
 	if err != nil {
 		return err
@@ -107,7 +99,7 @@ func reconcileActivities(db *sql.DB, now time.Time) error {
 	return rows.Err()
 }
 
-func listActivities(db *sql.DB, category, status, keyword string, page, pageSize int) ([]Activity, int64, error) {
+func ListActivities(db *sql.DB, category, status, keyword string, page, pageSize int) ([]domain.Activity, int64, error) {
 	clauses := []string{}
 	args := []any{}
 	clauses = append(clauses, "deleted_at IS NULL")
@@ -141,9 +133,9 @@ func listActivities(db *sql.DB, category, status, keyword string, page, pageSize
 		return nil, 0, err
 	}
 	defer rows.Close()
-	out := []Activity{}
+	out := []domain.Activity{}
 	for rows.Next() {
-		var it Activity
+		var it domain.Activity
 		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
 			return nil, 0, err
 		}
@@ -152,8 +144,8 @@ func listActivities(db *sql.DB, category, status, keyword string, page, pageSize
 	return out, total, rows.Err()
 }
 
-func getActivity(db *sql.DB, id int64) (Activity, error) {
-	var it Activity
+func GetActivity(db *sql.DB, id int64) (domain.Activity, error) {
+	var it domain.Activity
 	err := db.QueryRow(
 		"SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE id = ? AND deleted_at IS NULL",
 		id,
@@ -161,7 +153,7 @@ func getActivity(db *sql.DB, id int64) (Activity, error) {
 	return it, err
 }
 
-func registerActivity(db *sql.DB, activityID, userID int64) error {
+func RegisterActivity(db *sql.DB, activityID, userID int64) error {
 	now := time.Now()
 	var status, startTime, endTime, title string
 	err := db.QueryRow(
@@ -169,7 +161,7 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 		activityID,
 	).Scan(&status, &startTime, &endTime, &title)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errActivityNotFound
+		return ErrActivityNotFound
 	}
 	if err != nil {
 		return err
@@ -181,13 +173,13 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 		}
 	}
 	if next != "active" {
-		return errRegistrationClosed
+		return ErrRegistrationClosed
 	}
 	if !okDeadline {
-		return errActivityTimeInvalid
+		return ErrActivityTimeInvalid
 	}
 	if now.Equal(deadline) || now.After(deadline) {
-		return errRegistrationClosed
+		return ErrRegistrationClosed
 	}
 
 	createdAt := now.Format(time.RFC3339)
@@ -203,7 +195,7 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 				"SELECT status FROM activity_registrations WHERE activity_id = ? AND user_id = ?",
 				activityID, userID,
 			).Scan(&existing); qErr != nil {
-				return errAlreadyRegistered
+				return ErrAlreadyRegistered
 			}
 			if existing == "cancelled" {
 				if _, uErr := db.Exec(
@@ -217,7 +209,7 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 				}
 				return nil
 			}
-			return errAlreadyRegistered
+			return ErrAlreadyRegistered
 		}
 		return err
 	}
@@ -227,7 +219,7 @@ func registerActivity(db *sql.DB, activityID, userID int64) error {
 	return nil
 }
 
-func cancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
+func CancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
 	now := time.Now()
 	var status, startTime, endTime string
 	err := db.QueryRow(
@@ -235,7 +227,7 @@ func cancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
 		activityID,
 	).Scan(&status, &startTime, &endTime)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errActivityNotFound
+		return ErrActivityNotFound
 	}
 	if err != nil {
 		return err
@@ -248,13 +240,13 @@ func cancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
 		}
 	}
 	if next != "active" {
-		return errCancellationClosed
+		return ErrCancellationClosed
 	}
 	if !okDeadline {
-		return errActivityTimeInvalid
+		return ErrActivityTimeInvalid
 	}
 	if now.Equal(deadline) || now.After(deadline) {
-		return errCancellationClosed
+		return ErrCancellationClosed
 	}
 
 	res, err := db.Exec(
@@ -269,12 +261,12 @@ func cancelActivityRegistration(db *sql.DB, activityID, userID int64) error {
 		return err
 	}
 	if affected == 0 {
-		return errNotRegistered
+		return ErrNotRegistered
 	}
 	return nil
 }
 
-func listUserRegisteredActivities(db *sql.DB, userID int64) ([]Activity, error) {
+func ListUserRegisteredActivities(db *sql.DB, userID int64) ([]domain.Activity, error) {
 	q := `SELECT a.id, a.title, a.category, a.status, a.user_id, a.cover_url, a.summary, a.content, a.location, a.start_time, a.end_time, a.created_at 
 		  FROM activities a 
 		  JOIN activity_registrations r ON a.id = r.activity_id 
@@ -284,9 +276,9 @@ func listUserRegisteredActivities(db *sql.DB, userID int64) ([]Activity, error) 
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Activity{}
+	out := []domain.Activity{}
 	for rows.Next() {
-		var it Activity
+		var it domain.Activity
 		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -295,16 +287,16 @@ func listUserRegisteredActivities(db *sql.DB, userID int64) ([]Activity, error) 
 	return out, nil
 }
 
-func listUserPublishedActivities(db *sql.DB, userID int64) ([]Activity, error) {
+func ListUserPublishedActivities(db *sql.DB, userID int64) ([]domain.Activity, error) {
 	q := "SELECT id, title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at FROM activities WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC"
 	rows, err := db.Query(q, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Activity{}
+	out := []domain.Activity{}
 	for rows.Next() {
-		var it Activity
+		var it domain.Activity
 		if err := rows.Scan(&it.ID, &it.Title, &it.Category, &it.Status, &it.UserID, &it.CoverURL, &it.Summary, &it.Content, &it.Location, &it.StartTime, &it.EndTime, &it.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -313,7 +305,7 @@ func listUserPublishedActivities(db *sql.DB, userID int64) ([]Activity, error) {
 	return out, nil
 }
 
-func createActivity(db *sql.DB, it Activity) (int64, error) {
+func CreateActivity(db *sql.DB, it domain.Activity) (int64, error) {
 	now := time.Now().Format(time.RFC3339)
 	res, err := db.Exec(
 		"INSERT INTO activities (title, category, status, user_id, cover_url, summary, content, location, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -325,17 +317,17 @@ func createActivity(db *sql.DB, it Activity) (int64, error) {
 	return res.LastInsertId()
 }
 
-func updateActivityByOwner(db *sql.DB, id, ownerUserID int64, it Activity) error {
+func UpdateActivityByOwner(db *sql.DB, id, ownerUserID int64, it domain.Activity) error {
 	var currentOwner int64
 	err := db.QueryRow("SELECT user_id FROM activities WHERE id = ? AND deleted_at IS NULL", id).Scan(&currentOwner)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errActivityNotFound
+		return ErrActivityNotFound
 	}
 	if err != nil {
 		return err
 	}
 	if currentOwner != ownerUserID {
-		return errForbidden
+		return ErrForbidden
 	}
 
 	nextStatus := strings.TrimSpace(it.Status)
@@ -364,17 +356,17 @@ func updateActivityByOwner(db *sql.DB, id, ownerUserID int64, it Activity) error
 	return nil
 }
 
-func deleteActivityByOwner(db *sql.DB, id, ownerUserID int64) error {
+func DeleteActivityByOwner(db *sql.DB, id, ownerUserID int64) error {
 	var currentOwner int64
 	err := db.QueryRow("SELECT user_id FROM activities WHERE id = ? AND deleted_at IS NULL", id).Scan(&currentOwner)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errActivityNotFound
+		return ErrActivityNotFound
 	}
 	if err != nil {
 		return err
 	}
 	if currentOwner != ownerUserID {
-		return errForbidden
+		return ErrForbidden
 	}
 	now := time.Now().Format(time.RFC3339)
 	_, err = db.Exec("UPDATE activities SET deleted_at = ? WHERE id = ?", now, id)
@@ -384,17 +376,17 @@ func deleteActivityByOwner(db *sql.DB, id, ownerUserID int64) error {
 	return deleteNotificationsByActivity(db, id)
 }
 
-func listActivityRegistrationsByOwner(db *sql.DB, activityID, ownerUserID int64) ([]ActivityRegistrationView, error) {
+func ListActivityRegistrationsByOwner(db *sql.DB, activityID, ownerUserID int64) ([]domain.ActivityRegistrationView, error) {
 	var currentOwner int64
 	err := db.QueryRow("SELECT user_id FROM activities WHERE id = ? AND deleted_at IS NULL", activityID).Scan(&currentOwner)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, errActivityNotFound
+		return nil, ErrActivityNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
 	if currentOwner != ownerUserID {
-		return nil, errForbidden
+		return nil, ErrForbidden
 	}
 
 	rows, err := db.Query(
@@ -409,252 +401,13 @@ func listActivityRegistrationsByOwner(db *sql.DB, activityID, ownerUserID int64)
 		return nil, err
 	}
 	defer rows.Close()
-	out := []ActivityRegistrationView{}
+	out := []domain.ActivityRegistrationView{}
 	for rows.Next() {
-		var it ActivityRegistrationView
+		var it domain.ActivityRegistrationView
 		if err := rows.Scan(&it.ID, &it.ActivityID, &it.UserID, &it.Username, &it.Status, &it.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, it)
 	}
 	return out, rows.Err()
-}
-
-func upsertNotification(db *sql.DB, userID int64, kind, title, content string, activityID int64, scheduledFor time.Time) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := db.Exec(
-		`INSERT INTO notifications (user_id, kind, title, content, activity_id, scheduled_for, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)
-		 ON DUPLICATE KEY UPDATE title = VALUES(title), content = VALUES(content), scheduled_for = VALUES(scheduled_for)`,
-		userID, kind, title, content, activityID, scheduledFor.Format(time.RFC3339), now,
-	)
-	return err
-}
-
-func listUserNotifications(db *sql.DB, userID int64, page, pageSize int) ([]Notification, int64, error) {
-	now := time.Now().Format(time.RFC3339)
-	var total int64
-	if err := db.QueryRow(
-		"SELECT COUNT(1) FROM notifications WHERE user_id = ? AND scheduled_for <= ?",
-		userID, now,
-	).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	offset := (page - 1) * pageSize
-	rows, err := db.Query(
-		`SELECT id, kind, title, content, IFNULL(activity_id, 0), scheduled_for, IFNULL(read_at, ''), created_at
-		 FROM notifications
-		 WHERE user_id = ? AND scheduled_for <= ?
-		 ORDER BY scheduled_for DESC, id DESC
-		 LIMIT ? OFFSET ?`,
-		userID, now, pageSize, offset,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	out := []Notification{}
-	for rows.Next() {
-		var it Notification
-		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Content, &it.ActivityID, &it.ScheduledFor, &it.ReadAt, &it.CreatedAt); err != nil {
-			return nil, 0, err
-		}
-		out = append(out, it)
-	}
-	return out, total, rows.Err()
-}
-
-func markNotificationRead(db *sql.DB, userID, notificationID int64) error {
-	now := time.Now().Format(time.RFC3339)
-	res, err := db.Exec(
-		"UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ? AND read_at IS NULL",
-		now, notificationID, userID,
-	)
-	if err != nil {
-		return err
-	}
-	_, err = res.RowsAffected()
-	return err
-}
-
-func deleteNotificationsByActivity(db *sql.DB, activityID int64) error {
-	_, err := db.Exec("DELETE FROM notifications WHERE activity_id = ?", activityID)
-	return err
-}
-
-func listActivityRegistrationUserIDs(db *sql.DB, activityID int64) ([]int64, error) {
-	rows, err := db.Query("SELECT user_id FROM activity_registrations WHERE activity_id = ? ORDER BY id DESC", activityID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []int64{}
-	for rows.Next() {
-		var uid int64
-		if err := rows.Scan(&uid); err != nil {
-			return nil, err
-		}
-		out = append(out, uid)
-	}
-	return out, rows.Err()
-}
-
-func upsertActivityStartReminders(db *sql.DB, activityID, userID int64, activityTitle string, startAt time.Time) error {
-	t24 := startAt.Add(-24 * time.Hour)
-	t1 := startAt.Add(-1 * time.Hour)
-
-	title24 := "活动提醒"
-	content24 := activityTitle + " 将于 " + startAt.Format(time.RFC3339) + " 开始（提前 24 小时提醒）"
-	title1 := "活动提醒"
-	content1 := activityTitle + " 将于 " + startAt.Format(time.RFC3339) + " 开始（提前 1 小时提醒）"
-
-	if err := upsertNotification(db, userID, "activity_start_24h", title24, content24, activityID, t24); err != nil {
-		return err
-	}
-	if err := upsertNotification(db, userID, "activity_start_1h", title1, content1, activityID, t1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func upsertActivityStartRemindersForActivity(db *sql.DB, activityID int64, activityTitle string, startAt time.Time) error {
-	userIDs, err := listActivityRegistrationUserIDs(db, activityID)
-	if err != nil {
-		return err
-	}
-	for _, uid := range userIDs {
-		if err := upsertActivityStartReminders(db, activityID, uid, activityTitle, startAt); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func listServices(db *sql.DB, category, keyword string, page, pageSize int) ([]Service, int64, error) {
-	clauses := []string{}
-	args := []any{}
-	if category != "" {
-		clauses = append(clauses, "category = ?")
-		args = append(args, category)
-	}
-	if keyword != "" {
-		clauses = append(clauses, "(name LIKE ? OR description LIKE ?)")
-		kw := "%" + keyword + "%"
-		args = append(args, kw, kw)
-	}
-	where := ""
-	if len(clauses) > 0 {
-		where = "WHERE " + strings.Join(clauses, " AND ")
-	}
-	var total int64
-	if err := db.QueryRow("SELECT COUNT(1) FROM services "+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	offset := (page - 1) * pageSize
-	q := "SELECT id, name, category, phone, address, description, updated_at FROM services " + where + " ORDER BY id DESC LIMIT ? OFFSET ?"
-	args = append(args, pageSize, offset)
-	rows, err := db.Query(q, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	out := []Service{}
-	for rows.Next() {
-		var it Service
-		if err := rows.Scan(&it.ID, &it.Name, &it.Category, &it.Phone, &it.Address, &it.Description, &it.UpdatedAt); err != nil {
-			return nil, 0, err
-		}
-		out = append(out, it)
-	}
-	return out, total, rows.Err()
-}
-
-func getService(db *sql.DB, id int64) (Service, error) {
-	var it Service
-	err := db.QueryRow(
-		"SELECT id, name, category, phone, address, description, updated_at FROM services WHERE id = ?",
-		id,
-	).Scan(&it.ID, &it.Name, &it.Category, &it.Phone, &it.Address, &it.Description, &it.UpdatedAt)
-	return it, err
-}
-
-func createService(db *sql.DB, it Service) (int64, error) {
-	now := time.Now().Format(time.RFC3339)
-	res, err := db.Exec(
-		"INSERT INTO services (name, category, phone, address, description, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		it.Name, it.Category, it.Phone, it.Address, it.Description, now,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
-}
-
-func updateService(db *sql.DB, id int64, it Service) error {
-	now := time.Now().Format(time.RFC3339)
-	_, err := db.Exec(
-		"UPDATE services SET name = ?, category = ?, phone = ?, address = ?, description = ?, updated_at = ? WHERE id = ?",
-		it.Name, it.Category, it.Phone, it.Address, it.Description, now, id,
-	)
-	return err
-}
-
-func deleteService(db *sql.DB, id int64) error {
-	_, err := db.Exec("DELETE FROM services WHERE id = ?", id)
-	return err
-}
-
-func listLostItems(db *sql.DB, itemType, status, keyword string, page, pageSize int, includeDeleted bool) ([]LostItem, int64, error) {
-	clauses := []string{}
-	args := []any{}
-	if !includeDeleted {
-		clauses = append(clauses, "deleted_at IS NULL")
-	}
-	if itemType != "" {
-		clauses = append(clauses, "item_type = ?")
-		args = append(args, itemType)
-	}
-	if status != "" {
-		clauses = append(clauses, "status = ?")
-		args = append(args, status)
-	}
-	if keyword != "" {
-		clauses = append(clauses, "(title LIKE ? OR description LIKE ?)")
-		kw := "%" + keyword + "%"
-		args = append(args, kw, kw)
-	}
-	where := ""
-	if len(clauses) > 0 {
-		where = "WHERE " + strings.Join(clauses, " AND ")
-	}
-	var total int64
-	if err := db.QueryRow("SELECT COUNT(1) FROM lost_items "+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	offset := (page - 1) * pageSize
-	q := "SELECT id, title, item_type, status, location, occurred_at, description, contact, created_at, updated_at FROM lost_items " + where + " ORDER BY id DESC LIMIT ? OFFSET ?"
-	args = append(args, pageSize, offset)
-	rows, err := db.Query(q, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	out := []LostItem{}
-	for rows.Next() {
-		var it LostItem
-		if err := rows.Scan(&it.ID, &it.Title, &it.ItemType, &it.Status, &it.Location, &it.OccurredAt, &it.Description, &it.Contact, &it.CreatedAt, &it.UpdatedAt); err != nil {
-			return nil, 0, err
-		}
-		out = append(out, it)
-	}
-	return out, total, rows.Err()
-}
-
-func getLostItem(db *sql.DB, id int64) (LostItem, error) {
-	var it LostItem
-	err := db.QueryRow(
-		"SELECT id, title, item_type, status, location, occurred_at, description, contact, created_at, updated_at FROM lost_items WHERE id = ? AND deleted_at IS NULL",
-		id,
-	).Scan(&it.ID, &it.Title, &it.ItemType, &it.Status, &it.Location, &it.OccurredAt, &it.Description, &it.Contact, &it.CreatedAt, &it.UpdatedAt)
-	return it, err
 }

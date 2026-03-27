@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"crypto/rand"
@@ -6,16 +6,17 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	"community-help-hub-server/internal/config"
+
+	mysql "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func ensureAdminUser(db *sql.DB) error {
-	adminUser := envOr("ADMIN_USERNAME", "admin")
-	adminPass := envOr("ADMIN_PASSWORD", "admin123")
+func EnsureAdminUser(db *sql.DB) error {
+	adminUser := config.EnvOr("ADMIN_USERNAME", "admin")
+	adminPass := config.EnvOr("ADMIN_PASSWORD", "admin123")
 	var id int64
 	err := db.QueryRow("SELECT id FROM users WHERE username = ?", adminUser).Scan(&id)
 	if err == nil {
@@ -36,7 +37,7 @@ func ensureAdminUser(db *sql.DB) error {
 	return err
 }
 
-func verifyUser(db *sql.DB, username, password string) (int64, string, error) {
+func VerifyUser(db *sql.DB, username, password string) (int64, string, error) {
 	var id int64
 	var storedPass, hash, role string
 	err := db.QueryRow("SELECT id, password, password_hash, role FROM users WHERE username = ?", username).Scan(&id, &storedPass, &hash, &role)
@@ -58,7 +59,7 @@ func verifyUser(db *sql.DB, username, password string) (int64, string, error) {
 	return id, role, nil
 }
 
-func createUser(db *sql.DB, username, password, role string) (int64, error) {
+func CreateUser(db *sql.DB, username, password, role string) (int64, error) {
 	now := time.Now().Format(time.RFC3339)
 	res, err := db.Exec(
 		"INSERT INTO users (username, password, password_hash, role, created_at) VALUES (?,?,?,?,?)",
@@ -75,7 +76,7 @@ func createUser(db *sql.DB, username, password, role string) (int64, error) {
 	return id, err
 }
 
-func isDuplicateUsername(err error) bool {
+func IsDuplicateUsername(err error) bool {
 	var me *mysql.MySQLError
 	if errors.As(err, &me) {
 		return me.Number == 1062
@@ -83,13 +84,13 @@ func isDuplicateUsername(err error) bool {
 	return false
 }
 
-func getUserProfile(db *sql.DB, userID int64) (string, string, error) {
+func GetUserProfile(db *sql.DB, userID int64) (string, string, error) {
 	var username, role string
 	err := db.QueryRow("SELECT username, role FROM users WHERE id = ?", userID).Scan(&username, &role)
 	return username, role, err
 }
 
-func createSession(db *sql.DB, userID int64) (string, time.Time, error) {
+func CreateSession(db *sql.DB, userID int64) (string, time.Time, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", time.Time{}, err
@@ -107,7 +108,7 @@ func createSession(db *sql.DB, userID int64) (string, time.Time, error) {
 	return token, expiresAt, err
 }
 
-func validateSession(db *sql.DB, token string) (int64, error) {
+func ValidateSession(db *sql.DB, token string) (int64, error) {
 	var userID int64
 	var expiresAtStr string
 	err := db.QueryRow("SELECT user_id, expires_at FROM sessions WHERE token = ?", token).Scan(&userID, &expiresAtStr)
@@ -122,16 +123,4 @@ func validateSession(db *sql.DB, token string) (int64, error) {
 		return 0, fmt.Errorf("expired")
 	}
 	return userID, nil
-}
-
-func bearerToken(authHeader string) (string, bool) {
-	parts := strings.SplitN(strings.TrimSpace(authHeader), " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return "", false
-	}
-	tok := strings.TrimSpace(parts[1])
-	if tok == "" {
-		return "", false
-	}
-	return tok, true
 }
